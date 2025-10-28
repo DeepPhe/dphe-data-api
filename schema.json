@@ -1,0 +1,496 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "documents": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "date",
+          "episode",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1
+          },
+          "episode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sections": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "required": [
+                "id",
+                "type",
+                "begin",
+                "end"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "begin": {
+                  "type": "number"
+                },
+                "end": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "mentions": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "required": [
+                "begin",
+                "end",
+                "id",
+                "classUri",
+                "negated",
+                "uncertain",
+                "historic",
+                "confidence"
+              ],
+              "properties": {
+                "begin": {
+                  "type": "number"
+                },
+                "end": {
+                  "type": "number"
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "classUri": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "negated": {
+                  "type": "boolean"
+                },
+                "uncertain": {
+                  "type": "boolean"
+                },
+                "historic": {
+                  "type": "boolean"
+                },
+                "confidence": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "mentionRelations": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "required": [
+                "type",
+                "sourceId",
+                "targetId"
+              ],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sourceId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "targetId": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "concepts": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "required": [
+          "dpheGroup",
+          "preferredText",
+          "id",
+          "classUri",
+          "negated",
+          "uncertain",
+          "historic",
+          "confidence"
+        ],
+        "properties": {
+          "dpheGroup": {
+            "type": "string",
+            "minLength": 1
+          },
+          "preferredText": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mentionIds": {
+            "type": "array",
+            "items": {
+              "required": [],
+              "properties": {}
+            }
+          },
+          "codifications": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "required": [
+                "source"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "codes": {
+                  "type": "array",
+                  "items": {
+                    "required": [],
+                    "properties": {}
+                  }
+                }
+              }
+            }
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "classUri": {
+            "type": "string",
+            "minLength": 1
+          },
+          "negated": {
+            "type": "boolean"
+          },
+          "uncertain": {
+            "type": "boolean"
+          },
+          "historic": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "conceptRelations": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "required": [
+          "type",
+          "sourceId",
+          "targetId"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "cancers": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "required": [
+          "id",
+          "classUri",
+          "negated",
+          "uncertain",
+          "historic",
+          "confidence"
+        ],
+        "properties": {
+          "tumors": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "required": [
+                "id",
+                "classUri",
+                "negated",
+                "uncertain",
+                "historic",
+                "confidence"
+              ],
+              "properties": {
+                "conceptIds": {
+                  "type": "array",
+                  "items": {
+                    "required": [],
+                    "properties": {}
+                  }
+                },
+                "attributes": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 1,
+                  "items": {
+                    "required": [
+                      "name",
+                      "id"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "values": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "minItems": 1,
+                        "items": {
+                          "required": [
+                            "value",
+                            "id",
+                            "classUri",
+                            "negated",
+                            "uncertain",
+                            "historic",
+                            "confidence"
+                          ],
+                          "properties": {
+                            "value": {
+                              "type": "string"
+                            },
+                            "conceptIds": {
+                              "type": "array",
+                              "items": {
+                                "required": [],
+                                "properties": {}
+                              }
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "classUri": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "negated": {
+                              "type": "boolean"
+                            },
+                            "uncertain": {
+                              "type": "boolean"
+                            },
+                            "historic": {
+                              "type": "boolean"
+                            },
+                            "confidence": {
+                              "type": "number"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "classUri": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "negated": {
+                  "type": "boolean"
+                },
+                "uncertain": {
+                  "type": "boolean"
+                },
+                "historic": {
+                  "type": "boolean"
+                },
+                "confidence": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "attributes": {
+            "type": "array",
+            "uniqueItems": true,
+            "minItems": 1,
+            "items": {
+              "required": [
+                "name",
+                "id"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "values": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "minItems": 1,
+                  "items": {
+                    "required": [
+                      "value",
+                      "id",
+                      "classUri",
+                      "negated",
+                      "uncertain",
+                      "historic",
+                      "confidence"
+                    ],
+                    "properties": {
+                      "value": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "conceptIds": {
+                        "type": "array",
+                        "items": {
+                          "required": [],
+                          "properties": {}
+                        }
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "classUri": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "negated": {
+                        "type": "boolean"
+                      },
+                      "uncertain": {
+                        "type": "boolean"
+                      },
+                      "historic": {
+                        "type": "boolean"
+                      },
+                      "confidence": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "conceptIds": {
+            "type": "array",
+            "items": {
+              "required": [],
+              "properties": {}
+            }
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "classUri": {
+            "type": "string",
+            "minLength": 1
+          },
+          "negated": {
+            "type": "boolean"
+          },
+          "uncertain": {
+            "type": "boolean"
+          },
+          "historic": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "documents",
+    "concepts",
+    "conceptRelations",
+    "cancers"
+  ]
+}
+
+
