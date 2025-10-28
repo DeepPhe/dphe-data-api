@@ -1,150 +1,20 @@
-
-exports.create = (req, res) => {
-    const {title, done = false} = req.body || {};
-    if (!title) return res.status(400).json({message: "titles is required"});
-    const id = todos.length ? Math.max(...todos.map((t) => t.id)) + 1 : 1;
-    const todo = {id, title, done};
-    todos.push(todo);
-    res.status(201).json(todo);
-};
-
-
-exports.getDocumentMentionRelations = (req, res) => {
-    const {patientId, documentId} = req.query;
-
-    if (!patientId || !documentId) {
-        return res.status(400).json({
-            message: "patientId and documentId query parameters are required"
-        });
-    }
-
-    // Mock data - replace with actual data retrieval logic
-    const relations = [
-        {
-            type: "hasAssociatedFinding",
-            sourceId: "MENTION123",
-            targetId: "MENTION456"
-        }
-    ];
-
-    res.json(relations);
-}
-
-exports.getDocumentSections = (req, res) => {
-    const {patientId, documentId} = req.query;
-
-    if (!patientId || !documentId) {
-        return res.status(400).json({
-            message: "patientId and documentId query parameters are required"
-        });
-    }
-
-    // Mock data - replace with actual data retrieval logic
-    const sections = [
-        {
-            id: "SECTION123",
-            begin: 0,
-            end: 100,
-            type: "Clinical History"
-        },
-        {
-            id: "SECTION456",
-            begin: 101,
-            end: 250,
-            type: "Findings"
-        },
-        {
-            id: "SECTION789",
-            begin: 251,
-            end: 350,
-            type: "Impression"
-        }
-    ];
-
-    res.json(sections);
-};
-
-// In src/controllers/dphe-patient-document-controller.js
-
-exports.getDocumentConcepts = (req, res) => {
-    const {patientId, documentId} = req.query;
-
-    if (!patientId || !documentId) {
-        return res.status(400).json({
-            message: "patientId and documentId query parameters are required"
-        });
-    }
-
-    // Mock data - replace with actual data retrieval logic
-    const concepts = [
-        {
-            id: "CONCEPT123",
-            code: "C12345",
-            preferredName: "Breast Cancer",
-            cui: "C0006142",
-            tui: "T191",
-            semanticType: "Neoplastic Process",
-            mentions: ["MENTION123", "MENTION789"]
-        },
-        {
-            id: "CONCEPT456",
-            code: "C67890",
-            preferredName: "Metastasis",
-            cui: "C0027627",
-            tui: "T047",
-            semanticType: "Disease or Syndrome",
-            mentions: ["MENTION456"]
-        }
-    ];
-
-    res.json(concepts);
-};
-
-
-exports.getDocumentMentions = (req, res) => {
-    const {patientId, documentId} = req.query;
-
-    if (!patientId || !documentId) {
-        return res.status(400).json({
-            message: "patientId and documentId query parameters are required"
-        });
-    }
-
-    // Mock data - replace with actual data retrieval logic
-    const mentions = [
-        {
-            id: "MENTION123",
-            begin: 15,
-            end: 25,
-            classUri: "http://example.org/ontology/SomeClass",
-            negated: false,
-            uncertain: false,
-            historic: false,
-            confidence: 95
-        },
-        {
-            id: "MENTION456",
-            begin: 30,
-            end: 45,
-            classUri: "http://example.org/ontology/AnotherClass",
-            negated: true,
-            uncertain: false,
-            historic: true,
-            confidence: 80
-        }
-    ];
-
-    res.json(mentions);
-};
+const { db } = require('../db');
 
 /**
- * Get document properties for a patient
+ * Get all documents for a patient
+ * Returns a collection of DocumentXn objects
+ *
  * @param {Object} req - Express request object
+ * @param {string} req.params.patientId - Patient ID from URL path (required)
+ * @param {string} [req.query.documentIds] - Comma-separated list of document IDs to filter by
+ * @param {string} [req.query.excludeProperties] - Comma-separated list of DocumentXn properties to exclude
  * @param {Object} res - Express response object
+ * @returns {Promise<DocumentXn[]>} Array of DocumentXn objects
  */
-exports.getDocuments = (req, res) => {
+exports.getDocuments = async (req, res) => {
     const patientId = req.params.patientId;
-    const includeContent = req.query.includeContent === 'true';
+    const documentIdsParam = req.query.documentIds;
+    const excludePropertiesParam = req.query.excludeProperties;
 
     if (!patientId) {
         return res.status(400).json({
@@ -152,41 +22,77 @@ exports.getDocuments = (req, res) => {
         });
     }
 
-    // Mock data - replace with actual database query
-    const documents = [
-        {
-            id: "doc123",
-            patientId: patientId,
-            name: "Progress Note",
-            date: "2023-01-15T14:30:00Z",
-            type: "Clinical Note",
-            source: "EHR",
-            status: "final",
-            metadata: {
-                authorId: "provider456",
-                specialty: "Oncology"
-            },
-            content: includeContent ? "Patient presents with symptoms of..." : undefined
-        },
-        {
-            id: "doc456",
-            patientId: patientId,
-            name: "Pathology Report",
-            date: "2023-01-10T09:15:00Z",
-            type: "Pathology",
-            source: "Laboratory",
-            status: "final",
-            metadata: {
-                specimenId: "SP789",
-                collectionDate: "2023-01-08T10:30:00Z"
-            },
-            content: includeContent ? "Histopathology findings indicate..." : undefined
+    // Parse documentIds into an array
+    const documentIds = documentIdsParam
+        ? documentIdsParam.split(',').map(id => id.trim())
+        : [];
+
+    // Parse excludeProperties into an array
+    const excludeProperties = excludePropertiesParam
+        ? excludePropertiesParam.split(',').map(prop => prop.trim())
+        : [];
+
+    // Validate that excluded properties are valid DocumentXn properties
+    const validProperties = ['id', 'name', 'type', 'date', 'episode', 'text', 'mentions', 'mentionRelations', 'sections'];
+    const invalidProperties = excludeProperties.filter(prop => !validProperties.includes(prop));
+
+    if (invalidProperties.length > 0) {
+        return res.status(400).json({
+            message: `Invalid properties to exclude: ${invalidProperties.join(', ')}. Valid properties are: ${validProperties.join(', ')}`
+        });
+    }
+
+    try {
+        const prefix = `${patientId}`;
+
+        // Use the existing getByPrefix method to retrieve all patient data
+        const results = await db.getByPrefix(prefix);
+
+        // Filter to only include document objects (keys ending in _Doc.json or patientId.json)
+        // This excludes sub-resources and ensures we only get DocumentXn objects
+        const documentKeys = results.filter(({ key }) => {
+            // Match pattern: patientId.json or patientId_*_Doc.json
+            return key === `${prefix}.json` || key.match(new RegExp(`^${prefix}_.*_Doc\\.json$`));
+        });
+
+        /** @type {DocumentXn[]} */
+        let documents = documentKeys.map(({ value }) => {
+            // Ensure the document conforms to DocumentXn structure
+            const document = {
+                id: value.id,
+                name: value.name,
+                type: value.type,
+                date: value.date,
+                episode: value.episode,
+                text: value.text,
+                mentions: value.mentions || [],
+                mentionRelations: value.mentionRelations || [],
+                sections: value.sections
+            };
+
+
+            // Exclude properties specified in excludeProperties parameter
+            excludeProperties.forEach(prop => {
+                delete document[prop];
+            });
+
+            // Remove undefined fields to keep response clean
+            return Object.fromEntries(
+                Object.entries(document).filter(([_, v]) => v !== undefined)
+            );
+        });
+
+        // Filter by documentIds if specified
+        if (documentIds.length > 0) {
+            documents = documents.filter(doc => documentIds.includes(doc.id));
         }
-    ];
 
-    res.json(documents);
+        res.json(documents);
+    } catch (error) {
+        console.error('Error fetching documents:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 };
-
 exports.getPatientEpisodes = (req, res) => {
     const patientId = req.query.patientId;
 

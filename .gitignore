@@ -6,6 +6,14 @@ yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
 
+# RocksDB data directory
+data/
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output
+
 # Runtime data
 pids
 *.pid

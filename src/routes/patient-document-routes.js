@@ -4,78 +4,10 @@ const patientDocumentController = require("../controllers/patient-document-contr
 
 /**
  * @openapi
- * /v1/dphe-data/patient/document/concepts:
+ * /v1/dphe-data/patient/{patientId}/documents:
  *   get:
- *     summary: Get concepts in a document given Patient ID and Document ID
- *     description: Returns list of concept objects extracted from a patient document
- *     tags: [Documents]
- *     parameters:
- *       - in: query
- *         name: patientId
- *         schema:
- *           type: string
- *         required: true
- *         description: Patient ID
- *       - in: query
- *         name: documentId
- *         schema:
- *           type: string
- *         required: true
- *         description: Document ID
- *     responses:
- *       200:
- *         description: List of document concepts
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Concept'
- *       400:
- *         description: Missing required parameters
- */
-router.get("/document/concepts", patientDocumentController.getDocumentConcepts);
-
-/**
- * @openapi
- * /v1/dphe-data/patient/document/mentions:
- *   get:
- *     summary: Get mentions in a document given Patient ID and Document ID
- *     description: Returns list of Mention objects
- *     tags: [Documents]
- *     parameters:
- *       - in: query
- *         name: patientId
- *         schema:
- *           type: string
- *         required: true
- *         description: Patient ID
- *       - in: query
- *         name: documentId
- *         schema:
- *           type: string
- *         required: true
- *         description: Document ID
- *     responses:
- *       200:
- *         description: List of document mentions
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Mention'
- *       400:
- *         description: Missing patientId parameter
- */
-router.get("/document/mentions", patientDocumentController.getDocumentMentions);
-
-/**
- * @openapi
- * /v1/dphe-data/patient/documents/:
- *   get:
- *     summary: Get document properties for a patient
- *     description: Returns list of all documents for a specific patient
+ *     summary: Get all documents for a patient
+ *     description: Returns list of all DocumentXn objects for a specific patient. Each document includes mentions, mentionRelations, sections, and other properties.
  *     tags: [Documents]
  *     parameters:
  *       - in: path
@@ -85,24 +17,34 @@ router.get("/document/mentions", patientDocumentController.getDocumentMentions);
  *         required: true
  *         description: Patient ID
  *       - in: query
- *         name: includeContent
+ *         name: documentIds
  *         schema:
- *           type: boolean
+ *           type: string
  *         required: false
- *         description: 'Whether to include document content (default: false)'
+ *         description: 'Comma-separated list of document IDs to filter by. Only documents matching these IDs will be returned.'
+ *         example: 'DOC123,DOC456,DOC789'
+ *       - in: query
+ *         name: excludeProperties
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: 'Comma-separated list of DocumentXn properties to exclude from results (e.g., "mentions,mentionRelations,sections"). Valid properties: id, name, type, date, episode, text, mentions, mentionRelations, sections'
+ *         example: 'text,mentionRelations'
  *     responses:
  *       200:
- *         description: List of DocumentXn objects
+ *         description: List of DocumentXn objects with all properties
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/DocumentXn'
+ *       400:
+ *         description: Missing or invalid patientId
  *       404:
  *         description: Patient not found
  */
-router.get("/documents/", patientDocumentController.getDocuments);
+router.get("/:patientId/documents", patientDocumentController.getDocuments);
 
 module.exports = router;
 

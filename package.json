@@ -4,25 +4,33 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node --inspect server.js",
     "dev": "nodemon server.js",
-    "generate-schemas": "node src/utils/schemaConverter.js"
+    "generate-schemas": "node src/utils/schemaConverter.js",
+    "seed": "node src/db/seed.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@mongodb-js/zstd": "^7.0.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "json-schema-generator": "^2.0.6",
     "morgan": "^1.10.1",
+    "sqlite3": "^5.1.7",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
     "axios": "^1.12.2",
+    "jest": "^29.7.0",
     "json-schema-to-typescript": "^15.0.4",
     "nodemon": "^3.1.10"
   }

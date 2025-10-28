@@ -1,3 +1,5 @@
+const { db } = require('../db');
+
 /**
  * Get demographics for a patient
  */
@@ -11,9 +13,15 @@ exports.getDemographics = async (req, res) => {
       });
     }
 
-    // TODO: Replace with your actual database query
-    // Example: const demographics = await DemographicsModel.find({ patientId });
-    const demographics = [];
+    // Query RocksDB for patient demographics
+    const key = `patient:${patientId}:demographics`;
+    const demographics = await db.get(key);
+
+    if (!demographics) {
+      return res.status(404).json({
+        error: 'Demographics not found for the specified patient'
+      });
+    }
 
     res.status(200).json(demographics);
   } catch (error) {
