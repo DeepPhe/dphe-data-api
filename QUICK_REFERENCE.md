@@ -1,159 +1,285 @@
-# SQLite3 Quick Reference
+# DPHE Data API - Quick Reference
 
-## Installation
+## 🚀 Quick Start
+
 ```bash
-npm install  # SQLite3 is already in package.json
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your database path and test patient ID
+
+# Start development server
+npm run dev
+
+# Run tests
+npm test
 ```
 
-## Basic Commands
+## 📍 API Endpoints
 
-### Start Server
+### Documents API
+
+**Get all documents for a patient:**
 ```bash
-npm start        # Production
-npm run dev      # Development (with auto-reload)
+GET /v1/dphe-data/patient/{patientId}/documents
 ```
 
-### Database Operations
+**Query Parameters:**
+- `documentIds` - Comma-separated list of document IDs to filter by
+- `excludeProperties` - Comma-separated list of properties to exclude
+
+**Examples:**
 ```bash
-npm run seed     # Seed with sample data
+# Get all documents
+GET /v1/dphe-data/patient/123456789/documents
+
+# Get specific documents
+GET /v1/dphe-data/patient/123456789/documents?documentIds=123456789_D_100,123456789_D_101
+
+# Exclude text content
+GET /v1/dphe-data/patient/123456789/documents?excludeProperties=text
+
+# Exclude multiple properties
+GET /v1/dphe-data/patient/123456789/documents?excludeProperties=text,mentions,mentionRelations
+
+# Combine filters
+GET /v1/dphe-data/patient/123456789/documents?documentIds=123456789_D_100&excludeProperties=text
 ```
 
-### Testing
-```bash
-npm test                # Run tests once
-npm run test:watch      # Watch mode
-npm run test:coverage   # With coverage
-```
+**Valid properties for exclusion:**
+- `id`, `name`, `type`, `date`, `episode`, `text`, `mentions`, `mentionRelations`, `sections`
 
-## Code Examples
+## 💾 Database Operations
 
-### Import Database
+### Using the SQLite Client
+
 ```javascript
 const { db } = require('./src/db');
-```
 
-### Store Data
-```javascript
-await db.put('key', { data: 'value' });
-```
+// Open database
+await db.open();
 
-### Get Data
-```javascript
+// Store data
+await db.put('key', { some: 'data' });
+
+// Retrieve data (auto-decompresses zstd)
 const data = await db.get('key');
-```
 
-### Delete Data
-```javascript
+// Get by prefix
+const results = await db.getByPrefix('123456789');
+
+// Delete
 await db.del('key');
-```
 
-### Batch Operations
-```javascript
+// Batch operations
 await db.batch([
-  { type: 'put', key: 'key1', value: { data: 1 } },
-  { type: 'put', key: 'key2', value: { data: 2 } },
-  { type: 'del', key: 'key3' }
+  { type: 'put', key: 'key1', value: { data: 'value1' } },
+  { type: 'del', key: 'key2' }
 ]);
-```
 
-### Prefix Query
-```javascript
-// Get all data for patient PAT001
-const results = await db.getByPrefix('patient:PAT001:');
-```
+// Get all (with limit)
+const all = await db.getAll(1000);
 
-### Get All
-```javascript
-const all = await db.getAll(100); // limit to 100
-```
-
-### Check Exists
-```javascript
+// Check existence
 const exists = await db.exists('key');
+
+// Clear all data (use with caution!)
+await db.clear();
+
+// Close database
+await db.close();
 ```
 
-### Clear Database
-```javascript
-await db.clear(); // Use with caution!
+## 🧪 Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test file
+npm test -- src/db/sqlite-client.test.js
+
+# Watch mode (auto-rerun on changes)
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
 ```
 
-## Key Patterns
+## ⚙️ Configuration
 
-| Pattern | Example | Description |
-|---------|---------|-------------|
-| Demographics | `patient:PAT001:demographics` | Patient demographics |
-| Cancer | `patient:PAT001:cancer:CAN001` | Cancer record |
-| Cancer Attrs | `patient:PAT001:cancer:CAN001:attributes` | Cancer attributes |
-| Document | `patient:PAT001:document:DOC001` | Medical document |
-| Concepts | `patient:PAT001:document:DOC001:concepts` | Document concepts |
+### Environment Variables
 
-## Common Queries
-
-```javascript
-// Get patient demographics
-const demo = await db.get(`patient:${patientId}:demographics`);
-
-// Get all cancers for a patient
-const cancers = await db.getByPrefix(`patient:${patientId}:cancer:`);
-
-// Get all documents
-const docs = await db.getByPrefix(`patient:${patientId}:document:`);
-
-// Get specific cancer
-const cancer = await db.get(`patient:${patientId}:cancer:${cancerId}`);
+Create `.env` file:
+```bash
+PORT=3000
+DB_PATH=./data/deepphe/deepphe_sqlite_compressed
+TEST_PATIENT_ID=your_test_patient_id_here
 ```
 
-## Configuration
+### Database Path Configuration
 
-The database path is configured in `src/config/database.js`:
+The database path is centralized in `src/config/database.js`:
+
 ```javascript
 const DB_PATH = process.env.DB_PATH || './data/deepphe/deepphe_sqlite_compressed';
 ```
 
-You can override it with an environment variable in `.env`:
-```bash
-PORT=3000
-DB_PATH=./data/deepphe/deepphe_sqlite_compressed
+**To change the database path:**
+1. Set `DB_PATH` in `.env` file, OR
+2. Edit `src/config/database.js`
+
+All files automatically use the configured path.
+
+## 📁 File Locations
+
+- **Config:** `src/config/database.js` - Database path constant
+- **Client:** `src/db/sqlite-client.js` - SQLite3 implementation
+- **Init:** `src/db/index.js` - Database initialization
+- **Seed:** `src/db/seed.js` - Sample data seeding
+- **Tests:** `src/db/sqlite-client.test.js` - Test suite
+- **Data:** `./data/deepphe/deepphe_sqlite_compressed` - Database file (gitignored)
+
+## 🏗️ Project Structure
+
+```
+src/
+├── config/database.js        # Database configuration
+├── controllers/              # Request handlers
+│   ├── patient-document-controller.js
+│   ├── patient-cancer-controller.js
+│   └── ...
+├── db/                       # Database layer
+│   ├── sqlite-client.js     # SQLite client
+│   ├── index.js             # Database initialization
+│   └── sqlite-client.test.js
+├── routes/                   # API routes
+│   ├── patient-document-routes.js
+│   └── ...
+└── types/                    # TypeScript definitions
+    ├── DocumentXn.d.ts
+    └── ...
 ```
 
-## API Endpoints
+## 🔧 Common Operations
 
-- `GET /v1/dphe-data/patient/demographics?patientId=PAT001`
-- `GET /v1/dphe-data/patient/cancers?patientId=PAT001`
-- `GET /v1/dphe-data/patient/documents?patientId=PAT001`
+### Get Documents for a Patient
 
-## Test Sample Data
+```javascript
+const { getDocuments } = require('./src/controllers/patient-document-controller');
 
-After running `npm run seed`:
-- Patient PAT001 (John Doe)
-- Patient PAT002 (Jane Smith)
-- Patient PAT003 (Robert Johnson)
+// Mock Express req/res
+const req = {
+  params: { patientId: '123456789' },
+  query: {}
+};
 
-## File Locations
+const res = {
+  json: (data) => console.log(data),
+  status: (code) => ({ json: (data) => console.log(code, data) })
+};
 
-- Config: `src/config/database.js` (database path constant)
-- Client: `src/db/sqlite-client.js` (SQLite implementation)
-- Init: `src/db/index.js`
-- Seed: `src/db/seed.js`
-- Tests: `src/db/sqlite-client.test.js`
-- Data: `./data/deepphe/deepphe_sqlite_compressed` (gitignored)
+await getDocuments(req, res);
+```
 
-## Troubleshooting
+### Filter Documents
 
-**Database won't open:**
-- Check `./data` directory exists
-- Verify permissions
+```javascript
+// Get specific documents
+const req = {
+  params: { patientId: '123456789' },
+  query: { 
+    documentIds: '123456789_D_100,123456789_D_101'
+  }
+};
 
-**Tests failing:**
-- Run `npm install` to ensure Jest is installed
-- Check `./data` directory permissions
+// Exclude properties
+const req = {
+  params: { patientId: '123456789' },
+  query: { 
+    excludeProperties: 'text,mentions'
+  }
+};
+```
 
-**Can't connect:**
-- Ensure server started: `npm start`
-- Check port 3000 is free
+## 📊 Database Schema
 
-## More Info
+### Files Table
+```sql
+CREATE TABLE files (
+  filename TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  encoding TEXT  -- 'raw' or 'zstd'
+)
+```
 
-- 🧪 Testing Guide: `TEST_DOCUMENTATION.md`
-- 📖 README: `README.md`
+The SQLite client automatically handles zstd decompression when reading data.
+
+## 🎯 Key Features
+
+- ✅ RESTful API with URL path parameters
+- ✅ Flexible document filtering (by ID, exclude properties)
+- ✅ Automatic zstd decompression
+- ✅ Centralized configuration
+- ✅ Comprehensive test coverage
+- ✅ Interactive Swagger documentation at `/api-docs`
+
+## 🔐 Security
+
+⚠️ **Never commit `.env` file** - It contains sensitive patient IDs and database paths.
+
+The `.gitignore` already excludes:
+- `.env`
+- `data/` directory
+
+## 📜 NPM Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm start` | Start server with debugging |
+| `npm run dev` | Development mode with auto-reload |
+| `npm test` | Run all tests |
+| `npm run test:watch` | Tests in watch mode |
+| `npm run test:coverage` | Tests with coverage report |
+| `npm run seed` | Seed database with sample data |
+
+## 🌐 API Documentation
+
+Interactive Swagger UI available at:
+```
+http://localhost:3000/api-docs
+```
+
+## 💡 Tips
+
+1. **Database Path:** Centralized in one file - easy to change
+2. **Tests:** Use real database with test patient ID from `.env`
+3. **Compression:** zstd decompression is automatic and transparent
+4. **Filtering:** Combine `documentIds` and `excludeProperties` for precise queries
+5. **Type Safety:** TypeScript definitions available in `src/types/`
+
+## 📚 More Info
+
+- 📖 Full Documentation: [README.md](./README.md)
+- 🧪 Testing Guide: [TESTING.md](./TESTING.md)
+- 📡 Swagger UI: `http://localhost:3000/api-docs`
+
+## 🆘 Troubleshooting
+
+### Database not found
+- Check `DB_PATH` in `.env`
+- Verify database file exists at specified path
+
+### Tests failing
+- Ensure `TEST_PATIENT_ID` is set in `.env`
+- Verify test patient exists in database
+
+### Port already in use
+- Change `PORT` in `.env`
+- Kill process using port 3000: `lsof -ti:3000 | xargs kill`
+
+### Decompression errors
+- Ensure `@mongodb-js/zstd` package is installed: `npm install @mongodb-js/zstd`
 
