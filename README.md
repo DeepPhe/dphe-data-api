@@ -29,7 +29,7 @@ cp .env.example .env
 4. Configure your environment variables in `.env`:
 ```bash
 PORT=3000
-DB_PATH=./data/deepphe/deepphe_sqlite_compressed
+DB_PATH=./data/deepphe/deepphe_db
 TEST_PATIENT_ID=your_test_patient_id_here
 ```
 
@@ -41,7 +41,7 @@ This project uses SQLite3 as an embedded database with a key-value store interfa
 
 The database path is configured in `src/config/database.js` and can be overridden with the `DB_PATH` environment variable.
 
-Default location: `./data/deepphe/deepphe_sqlite_compressed`
+Default location: `./data/deepphe/deepphe_db`
 
 ### Database Schema
 
@@ -50,38 +50,12 @@ The database uses a simple key-value structure with a `files` table:
 - `content` (TEXT) - JSON-encoded document data
 - `encoding` (TEXT) - Encoding type ('raw' or 'zstd' for compressed content)
 
-### Using the Database
 
-The SQLite client provides automatic zstd decompression for compressed content:
-
-```javascript
-const { db } = require('./src/db');
-
-// Store data
-await db.put('key', { some: 'data' });
-
-// Retrieve data (automatically decompresses if needed)
-const data = await db.get('key');
-
-// Query by prefix
-const results = await db.getByPrefix('patient:PAT001:');
-
-// Delete data
-await db.del('key');
-
-// Batch operations
-await db.batch([
-  { type: 'put', key: 'key1', value: { data: 'value1' } },
-  { type: 'put', key: 'key2', value: { data: 'value2' } },
-  { type: 'del', key: 'key3' }
-]);
-```
-
-### Key Naming Conventions
-
-The project uses the following key patterns:
-- Documents: `{patientId}_*_Doc.json` or `{patientId}.json`
-- All patient data uses numeric patient ID prefix for efficient querying
+### Naming Conventions
+- Document Keys: `{patientId}_D_{documentId}.json` (e.g., `123456789_D_100.json`)
+- Patient Keys: `{patientId}` (e.g., `123456789.json`)
+- Cancer Keys: `{patientId}_Cancers.json` (e.g., `123456789_Cancers.json`)
+- Concept Keys: `{patientId}_Concepts.json}` (e.g., `123456789_Concepts.json`)
 
 ## 🚀 Usage
 
@@ -130,18 +104,6 @@ http://localhost:3000/api-docs
 ### Cancer Data
 
 - `GET /v1/dphe-data/patient/cancers` - Get all cancers for a patient
-- `GET /v1/dphe-data/patient/cancer/attributes` - Get cancer attributes
-- `GET /v1/dphe-data/patient/cancer/attribute/concepts` - Get cancer concepts
-- `GET /v1/dphe-data/patient/cancer/attribute/mentions` - Get cancer mentions
-
-### Demographics
-
-- `GET /v1/dphe-data/patient/demographics` - Get patient demographics
-
-### Cohort Filtering
-
-- `GET /v1/dphe-data/cohort/filter/categories` - Get all filter categories
-- `POST /v1/dphe-data/cohort/filter/categories/patients` - Get patients by categories
 
 ## 📖 API Examples
 
@@ -188,45 +150,16 @@ npm run test:coverage
 npm test -- src/db/sqlite-client.test.js
 ```
 
-The test suite includes comprehensive tests for:
-- SQLite database operations (PUT, GET, DELETE, batch operations)
-- Document retrieval with filtering by document IDs
-- Property exclusion functionality
-- zstd decompression
-- Error handling and edge cases
-
-See [TESTING.md](./TESTING.md) for detailed testing information.
-
 ## 📜 Scripts
 
 | Script | Description |
 |--------|-------------|
 | `npm start` | Start the server with debugging enabled |
 | `npm run dev` | Start the server in development mode with auto-reload (nodemon) |
-| `npm run seed` | Seed the database with sample data |
 | `npm run generate-schemas` | Generate TypeScript definitions from JSON schemas |
 | `npm test` | Run all tests |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run test:coverage` | Run tests with coverage report |
-
-## 🏗️ Project Structure
-
-```
-dphe-data-api/
-├── src/
-│   ├── config/          # Configuration files (database path)
-│   ├── controllers/     # Request handlers
-│   ├── db/             # Database client and utilities
-│   ├── docs/           # Swagger/OpenAPI documentation
-│   ├── routes/         # API route definitions
-│   ├── types/          # TypeScript type definitions
-│   └── app.js          # Express app configuration
-├── data/               # Database files (gitignored)
-├── .env                # Environment variables (gitignored)
-├── .env.example        # Environment variables template
-├── server.js           # Server entry point
-└── package.json        # Dependencies and scripts
-```
 
 ## 🔧 Configuration
 
@@ -241,23 +174,12 @@ dphe-data-api/
 The database path is centralized in `src/config/database.js`:
 
 ```javascript
-const DB_PATH = process.env.DB_PATH || './data/deepphe/deepphe_sqlite_compressed';
+const DB_PATH = process.env.DB_PATH || './data/deepphe/deepphe_db';
 ```
 
 To change the database location:
 1. Edit `src/config/database.js`, OR
 2. Set `DB_PATH` in your `.env` file
-
-## 🎯 Key Features
-
-- ✅ RESTful API design with Express.js
-- ✅ SQLite3 database with key-value store interface
-- ✅ Automatic zstd decompression for compressed data
-- ✅ Flexible document filtering (by ID, exclude properties)
-- ✅ Interactive Swagger API documentation
-- ✅ Comprehensive test coverage with Jest
-- ✅ TypeScript type definitions
-- ✅ Centralized configuration management
 
 ## 🔐 Security Notes
 
@@ -274,17 +196,6 @@ Only `.env.example` should be committed as a template.
 ## 📞 Support
 
 For issues and questions, please open an issue in the GitHub repository.
-
-## 📄 Additional Documentation
-
-- [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Quick reference guide for common operations
-- [TESTING.md](./TESTING.md) - Comprehensive testing guide
-
-## 🚧 Development Notes
-
-### Database Migration from RocksDB to SQLite3
-
-This project was originally built with RocksDB and has been migrated to SQLite3. The client interface remains similar for backward compatibility.
 
 ### TypeScript Type Definitions
 
