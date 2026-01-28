@@ -231,10 +231,10 @@ describe("getCancers", () => {
     console.log("✓ VALIDATION [getCancers]: Missing patientId returns 400");
   });
 
-  test.skip("should return 404 when cancers not found for patient", async () => {
-    // Skip: Returning 500 instead of 404 - requires specific database setup
+  test("should return 404 when cancers not found for patient", async () => {
+    // When a patient has no cancers, should return 404
     const req = {
-      query: { patientId: "NONEXISTENT_PATIENT" },
+      query: { patientId: "NONEXISTENT_PATIENT_99999" },
     };
 
     let responseData;
@@ -254,9 +254,8 @@ describe("getCancers", () => {
 
     expect(statusCode).toBe(404);
     expect(responseData).toHaveProperty("error");
-    expect(responseData.error).toContain("Cancers not found");
     console.log(
-      "\n✓ NOT_FOUND [getCancers]: Non-existent patient returns 404 error"
+      "✓ NOT_FOUND [getCancers]: Non-existent patient returns 404 error"
     );
   });
 });

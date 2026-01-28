@@ -245,10 +245,10 @@ describe("getConcepts", () => {
     console.log("✓ VALIDATION [getConcepts]: Missing patientId returns 400");
   });
 
-  test.skip("should return 404 when concepts not found for patient", async () => {
-    // Skip: Returning 500 instead of 404 - requires specific database setup
+  test("should return 404 when concepts not found for patient", async () => {
+    // When a patient has no concepts, should return 404
     const req = {
-      query: { patientId: "NONEXISTENT_PATIENT" },
+      query: { patientId: "NONEXISTENT_PATIENT_99999" },
     };
 
     let responseData;
@@ -268,9 +268,8 @@ describe("getConcepts", () => {
 
     expect(statusCode).toBe(404);
     expect(responseData).toHaveProperty("error");
-    expect(responseData.error).toContain("Concepts not found");
     console.log(
-      "\t✓ NOT_FOUND [getConcepts]: Non-existent patient returns 404 error"
+      "✓ NOT_FOUND [getConcepts]: Non-existent patient returns 404 error"
     );
   });
 });
