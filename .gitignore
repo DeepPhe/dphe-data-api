@@ -183,3 +183,4 @@ out/
 *.bak
 *.backup
 
+/.ai/md/
