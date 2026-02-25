@@ -1,0 +1,67 @@
+const { getInstance } = require('../db/sqlite-client');
+
+/**
+ * Get all unique concept classes
+ * Returns an array of concept class dpheGroup values
+ *
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Promise<string[]>} Array of concept class dpheGroup values
+ */
+exports.getConceptsClasses = async (req, res) => {
+  try {
+    const db = getInstance();
+    await db.open();
+
+    // Retrieve concept classes from the database
+    const conceptClasses = await db.getConceptsClasses();
+
+    res.status(200).json(conceptClasses);
+  } catch (error) {
+    console.error('Error fetching concept classes:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get all concept instances for a specific class
+ * Returns an array of concept objects
+ *
+ * @param {Object} req - Express request object
+ * @param {string} req.query.dpheGroup - DPHE Group (required)
+ * @param {boolean} req.query.includePatientIds - Whether to include patientIds (optional, default: true)
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object[]>} Array of concept objects
+ */
+exports.getConceptsInstances = async (req, res) => {
+  try {
+    const { dpheGroup, includePatientIds } = req.query;
+
+    if (!dpheGroup) {
+      return res.status(400).json({
+        error: 'Missing required parameter: dpheGroup'
+      });
+    }
+
+    // Convert the includePatientIds parameter to a boolean
+    // If not provided or not 'false', default to true
+    const shouldIncludePatientIds = includePatientIds !== 'false';
+
+    const db = getInstance();
+    await db.open();
+
+    // Retrieve concept instances for the specified class from the database
+    const concepts = await db.getConceptsInstances(dpheGroup, shouldIncludePatientIds);
+
+    if (!concepts || concepts.length === 0) {
+      return res.status(404).json({
+        error: 'No concepts found for this class'
+      });
+    }
+
+    res.status(200).json(concepts);
+  } catch (error) {
+    console.error('Error fetching concept instances for class:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

@@ -117,6 +117,26 @@ http://localhost:3000/api-docs
 
 - `GET /v1/dphe-data/patient/cancers` - Get all cancers for a patient
 
+### Group Data
+
+#### Attributes
+- `GET /v1/dphe-data/attributes/classes` - Get all unique attribute classes
+- `GET /v1/dphe-data/attributes/instances` - Get all attribute instances for a specific class
+  - Query Parameters:
+    - `groupname` (required) - The attribute group name to filter by
+
+#### Cancers
+- `GET /v1/dphe-data/cancers/classes` - Get all unique cancer classes
+- `GET /v1/dphe-data/cancers/instances` - Get all cancer instances for a specific class
+  - Query Parameters:
+    - `classUri` (required) - The cancer group classUri to filter by
+
+#### Concepts
+- `GET /v1/dphe-data/concepts/classes` - Get all unique concept classes
+- `GET /v1/dphe-data/concepts/instances` - Get all concept instances for a specific class
+  - Query Parameters:
+    - `dpheGroup` (required) - The concept group dpheGroup to filter by
+
 ## 📖 API Examples
 
 ### Get All Documents for a Patient
@@ -320,4 +340,3 @@ For issues and questions, please open an issue in the GitHub repository.
 
 Type definitions are available in `src/types/` for all data structures including DocumentXn, Patient, Cancer, Concept,
 etc.
-

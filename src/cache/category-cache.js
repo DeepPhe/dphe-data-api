@@ -41,8 +41,14 @@ class CategoryCache {
 
       this.isInitialized = true;
     } catch (error) {
-      console.error("❌ Failed to initialize category cache:", error);
-      throw error;
+      // Don't throw - allow server to start even if MySQL is unavailable
+      console.error("❌ Failed to initialize category cache:", error.message);
+      console.error(
+        "   The /cohort/filter/categories/patients endpoint will not work"
+      );
+      console.error("   until MySQL is available and the cache is refreshed.");
+      // Mark as initialized with empty cache to prevent repeated warnings
+      this.isInitialized = true;
     }
   }
 

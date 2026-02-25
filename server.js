@@ -11,10 +11,20 @@ async function startServer() {
     await initializeDatabase();
 
     // Initialize category cache (loads GENDER, RACE, ETHNICITY data)
-    await categoryCache.initialize();
+    // Do this asynchronously so MySQL connection failures don't block server startup
+    categoryCache.initialize().catch((error) => {
+      console.warn(
+        "⚠️  Category cache initialization failed. MySQL may not be running."
+      );
+      console.warn(
+        "   The /cohort/filter/categories/patients endpoint will not work."
+      );
+      console.warn("   Error details:", error.message);
+    });
 
     // Start Express server
     const server = app.listen(port, () => {
+      console.log("Hi there!");
       console.log(`dphe-data-api listening on http://localhost:${port}`);
       console.log(`Swagger UI: http://localhost:${port}/docs`);
       console.log(`OpenAPI JSON: http://localhost:${port}/openapi.json`);

@@ -7,15 +7,23 @@ const dpheRoutes = require("./routes/dphe-data-routes");
 
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Serve the pre-built spec directly - do NOT call swaggerJsdoc again
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Swagger docs - auto-generated from JSDoc comments
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  swaggerOptions: {
+    docExpansion: "none",
+  },
+}));
 
-// Serve the raw JSON to verify what's actually being sent
+// Serve raw OpenAPI JSON spec
 app.get("/openapi.json", (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   res.json(swaggerSpec);
 });
 
