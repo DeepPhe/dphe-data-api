@@ -29,13 +29,13 @@ exports.getCancersClasses = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.query.classUri - Class URI (required)
- * @param {boolean} req.query.includePatientIds - Whether to include patientIds (optional, default: true)
+ * @param {boolean} req.path - Append /patients to include patientIds
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of cancer objects
  */
 exports.getCancersInstances = async (req, res) => {
   try {
-    const { classUri, includePatientIds } = req.query;
+    const { classUri } = req.query;
 
     if (!classUri) {
       return res.status(400).json({
@@ -43,9 +43,8 @@ exports.getCancersInstances = async (req, res) => {
       });
     }
 
-    // Convert the includePatientIds parameter to a boolean
-    // If not provided or not 'false', default to true
-    const shouldIncludePatientIds = includePatientIds !== 'false';
+    // Include patient IDs only when using the /patients route variant
+    const shouldIncludePatientIds = /\/patients\/?$/.test(req.path);
 
     const db = getInstance();
     await db.open();

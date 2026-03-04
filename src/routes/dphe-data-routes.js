@@ -11,6 +11,7 @@ const cacheRoutes = require("./cache-routes");
 const attributesRoutes = require("./attributes-routes");
 const cancersRoutes = require("./cancers-routes");
 const conceptsRoutes = require("./concepts-routes");
+const omopRoutes = require("./omop-routes");
 
 // Use route modules
 router.use("/patient", patientDocumentRoutes);
@@ -23,5 +24,6 @@ router.use("/cache", cacheRoutes);
 router.use("/attributes", attributesRoutes);
 router.use("/cancers", cancersRoutes);
 router.use("/concepts", conceptsRoutes);
+router.use("/omop", omopRoutes);
 
 module.exports = router;

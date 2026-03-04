@@ -28,7 +28,7 @@ router.get("/classes", cancersController.getCancersClasses);
  * /v1/dphe-data/cancers/instances:
  *   get:
  *     summary: Get all cancer instances for a specific class
- *     description: Returns list of cancer objects for a specific class
+ *     description: Returns list of cancer objects for a specific class (without patientIds)
  *     tags: [Cancers]
  *     parameters:
  *       - in: query
@@ -37,12 +37,6 @@ router.get("/classes", cancersController.getCancersClasses);
  *           type: string
  *         required: true
  *         description: Class URI
- *       - in: query
- *         name: includePatientIds
- *         schema:
- *           type: boolean
- *         required: false
- *         description: "Whether to include patientIds (default: true)"
  *     responses:
  *       200:
  *         description: List of cancers
@@ -90,5 +84,31 @@ router.get("/classes", cancersController.getCancersClasses);
  *         description: Internal server error
  */
 router.get("/instances", cancersController.getCancersInstances);
+
+/**
+ * @openapi
+ * /v1/dphe-data/cancers/instances/patients:
+ *   get:
+ *     summary: Get all cancer instances for a specific class including patientIds
+ *     description: Returns list of cancer objects for a specific class with patientIds
+ *     tags: [Cancers]
+ *     parameters:
+ *       - in: query
+ *         name: classUri
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Class URI
+ *     responses:
+ *       200:
+ *         description: List of cancers with patientIds
+ *       400:
+ *         description: Missing required parameters
+ *       404:
+ *         description: No cancers found for this class
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/instances/patients", cancersController.getCancersInstances);
 
 module.exports = router;

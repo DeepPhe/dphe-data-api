@@ -29,13 +29,13 @@ exports.getAttributesClasses = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.query.groupname - Group name (required)
- * @param {boolean} req.query.includePatientIds - Whether to include patientIds (optional, default: true)
+ * @param {boolean} req.path - Append /patients to include patientIds
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of attribute objects
  */
 exports.getAttributesInstances = async (req, res) => {
   try {
-    const { groupname, includePatientIds } = req.query;
+    const { groupname } = req.query;
 
     if (!groupname) {
       return res.status(400).json({
@@ -43,9 +43,8 @@ exports.getAttributesInstances = async (req, res) => {
       });
     }
 
-    // Convert the includePatientIds parameter to a boolean
-    // If not provided or not 'false', default to true
-    const shouldIncludePatientIds = includePatientIds !== 'false';
+    // Include patient IDs only when using the /patients route variant
+    const shouldIncludePatientIds = /\/patients\/?$/.test(req.path);
 
     const db = getInstance();
     await db.open();

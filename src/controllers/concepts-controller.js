@@ -29,13 +29,13 @@ exports.getConceptsClasses = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.query.dpheGroup - DPHE Group (required)
- * @param {boolean} req.query.includePatientIds - Whether to include patientIds (optional, default: true)
+ * @param {boolean} req.path - Append /patients to include patientIds
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of concept objects
  */
 exports.getConceptsInstances = async (req, res) => {
   try {
-    const { dpheGroup, includePatientIds } = req.query;
+    const { dpheGroup } = req.query;
 
     if (!dpheGroup) {
       return res.status(400).json({
@@ -43,9 +43,8 @@ exports.getConceptsInstances = async (req, res) => {
       });
     }
 
-    // Convert the includePatientIds parameter to a boolean
-    // If not provided or not 'false', default to true
-    const shouldIncludePatientIds = includePatientIds !== 'false';
+    // Include patient IDs only when using the /patients route variant
+    const shouldIncludePatientIds = /\/patients\/?$/.test(req.path);
 
     const db = getInstance();
     await db.open();

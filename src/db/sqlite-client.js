@@ -533,6 +533,14 @@ class SQLiteClient {
     }
 
     /**
+     * Get supported OMOP classes
+     * @returns {Promise<Array<string>>} - Array of OMOP class names
+     */
+    async getOmopClasses() {
+        return Promise.resolve(['AGE_AT_DX', 'ETHNICITY', 'GENDER', 'RACE', 'CANCER']);
+    }
+
+    /**
      * Get all attribute instances for a specific group
      * @param {string} groupname - The group name to filter by
      * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: true)
@@ -740,6 +748,89 @@ class SQLiteClient {
     }
 
     /**
+     * Get all OMOP instances for a specific class
+     * @param {string} omopClass - The OMOP class to filter by (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
+     * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: true)
+     * @returns {Promise<Array<Object>>} - Array of OMOP instances for the specified class
+     */
+    async getOmopInstances(omopClass, includePatientIds = true) {
+        return new Promise(async (resolve, reject) => {
+            if (!this.isOpen) {
+                return reject(new Error('Database is not open'));
+            }
+
+            const className = String(omopClass || '').toUpperCase();
+            const omopClassConfig = {
+                AGE_AT_DX: { table: 'omop_age_at_dx', valueColumn: 'age_at_dx' },
+                ETHNICITY: { table: 'omop_ethnicity', valueColumn: 'ethnicity' },
+                GENDER: { table: 'omop_gender', valueColumn: 'gender' },
+                RACE: { table: 'omop_race', valueColumn: 'race' },
+                CANCER: { table: 'omop_cancers', valueColumn: 'cancer' }
+            };
+
+            const config = omopClassConfig[className];
+            if (!config) {
+                return reject(new Error(`Invalid OMOP class: ${omopClass}`));
+            }
+
+            this.db.all(
+                `SELECT * FROM ${config.table} ORDER BY ${config.valueColumn}`,
+                [],
+                async (err, rows) => {
+                    if (err) {
+                        return reject(err);
+                    }
+
+                    try {
+                        // Process each row
+                        const processedRows = await Promise.all(rows.map(async (row) => {
+                            // Create a copy of the row to avoid modifying the original
+                            const processedRow = { ...row };
+
+                            if (includePatientIds) {
+                                // Check if the row has a patient_bitmap field
+                                if (processedRow.patient_bitmap) {
+                                    // Convert the bitmap to patient IDs
+                                    processedRow.patientIds = await this.patientBitmapToPatientIds(
+                                        processedRow.patient_bitmap,
+                                        'blob'
+                                    );
+                                    // Delete the original patient_bitmap after conversion
+                                    delete processedRow.patient_bitmap;
+                                }
+                                // Check if the row has a patientbitmap field
+                                else if (processedRow.patientbitmap) {
+                                    // Convert the bitmap to patient IDs
+                                    processedRow.patientIds = await this.patientBitmapToPatientIds(
+                                        processedRow.patientbitmap,
+                                        'base64'
+                                    );
+                                    // Delete the original patientbitmap after conversion
+                                    delete processedRow.patientbitmap;
+                                }
+                            } else {
+                                // If not including patient IDs, just remove the bitmap fields
+                                if (processedRow.patient_bitmap) {
+                                    delete processedRow.patient_bitmap;
+                                }
+                                if (processedRow.patientbitmap) {
+                                    delete processedRow.patientbitmap;
+                                }
+                            }
+
+                            return processedRow;
+                        }));
+
+                        resolve(processedRows);
+                    } catch (error) {
+                        reject(error);
+                    }
+                }
+            );
+        });
+    }
+
+    /**
      * Maps sequential IDs from a bitmap to patient IDs using the patient_id_mapping table
      * @param {string|Buffer} source - Either a file path, Buffer, base64 string, or blob containing the bitmap
      * @param {string} sourceType - Type of source: 'file', 'buffer', 'base64', or 'blob'
@@ -805,32 +896,39 @@ class SQLiteClient {
                     return reject(new Error(`Failed to decode bitmap: ${bitmapError.message}`));
                 }
 
-                // Create placeholders for the SQL query
-                const placeholders = sequentialIds.map(() => '?').join(',');
+                // SQLite has a max variable limit for IN (?) queries.
+                // Use chunks so large bitmaps (for common demographics) do not fail.
+                const chunkSize = 900;
+                const idMapping = {};
 
-                // Query the patient_id_mapping table to get the mappings
-                this.db.all(
-                    `SELECT sequential_id, patient_id FROM patient_id_mapping WHERE sequential_id IN (${placeholders})`,
-                    sequentialIds,
-                    (err, rows) => {
-                        if (err) {
-                            return reject(err);
-                        }
+                for (let i = 0; i < sequentialIds.length; i += chunkSize) {
+                    const chunk = sequentialIds.slice(i, i + chunkSize);
+                    const placeholders = chunk.map(() => '?').join(',');
 
-                        // Create a mapping from sequential ID to patient ID
-                        const idMapping = {};
-                        rows.forEach(row => {
-                            idMapping[row.sequential_id] = row.patient_id;
-                        });
-
-                        // Map each sequential ID to its patient ID or "missing"
-                        const result = sequentialIds.map(id => 
-                            idMapping[id] !== undefined ? idMapping[id] : "missing"
+                    const rows = await new Promise((resolveChunk, rejectChunk) => {
+                        this.db.all(
+                            `SELECT sequential_id, patient_id FROM patient_id_mapping WHERE sequential_id IN (${placeholders})`,
+                            chunk,
+                            (err, resultRows) => {
+                                if (err) {
+                                    return rejectChunk(err);
+                                }
+                                resolveChunk(resultRows);
+                            }
                         );
+                    });
 
-                        resolve(result);
-                    }
+                    rows.forEach((row) => {
+                        idMapping[row.sequential_id] = row.patient_id;
+                    });
+                }
+
+                // Map each sequential ID to its patient ID or "missing"
+                const result = sequentialIds.map(id =>
+                    idMapping[id] !== undefined ? idMapping[id] : "missing"
                 );
+
+                resolve(result);
             } catch (error) {
                 reject(error);
             }

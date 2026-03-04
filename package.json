@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node --inspect server.js",
+    "start": "node server.js",
+    "start:debug": "node --inspect server.js",
     "dev": "nodemon server.js",
     "generate-schemas": "node src/utils/schemaConverter.js",
     "test": "jest",

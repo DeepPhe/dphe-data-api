@@ -28,7 +28,7 @@ router.get("/classes", attributesController.getAttributesClasses);
  * /v1/dphe-data/attributes/instances:
  *   get:
  *     summary: Get all attribute instances for a specific class
- *     description: Returns list of attribute objects for a specific class
+ *     description: Returns list of attribute objects for a specific class (without patientIds)
  *     tags: [Attributes]
  *     parameters:
  *       - in: query
@@ -37,12 +37,6 @@ router.get("/classes", attributesController.getAttributesClasses);
  *           type: string
  *         required: true
  *         description: Group name
- *       - in: query
- *         name: includePatientIds
- *         schema:
- *           type: boolean
- *         required: false
- *         description: "Whether to include patientIds (default: true)"
  *     responses:
  *       200:
  *         description: List of attributes
@@ -94,5 +88,31 @@ router.get("/classes", attributesController.getAttributesClasses);
  *         description: Internal server error
  */
 router.get("/instances", attributesController.getAttributesInstances);
+
+/**
+ * @openapi
+ * /v1/dphe-data/attributes/instances/patients:
+ *   get:
+ *     summary: Get all attribute instances for a specific class including patientIds
+ *     description: Returns list of attribute objects for a specific class with patientIds
+ *     tags: [Attributes]
+ *     parameters:
+ *       - in: query
+ *         name: groupname
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Group name
+ *     responses:
+ *       200:
+ *         description: List of attributes with patientIds
+ *       400:
+ *         description: Missing required parameters
+ *       404:
+ *         description: No attributes found for this class
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/instances/patients", attributesController.getAttributesInstances);
 
 module.exports = router;
