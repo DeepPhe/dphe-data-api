@@ -98,10 +98,14 @@ http://localhost:3000/api-docs
 
 ## 🔌 API Endpoints
 
-### Documents
+### Patient
 
-- **`GET /v1/dphe-data/patient/{patientId}/documents`**
-    - Get all documents for a patient
+- **`GET /v1/deepphe-api/deepphe/patient/{patientId}`**
+    - Get patient documents with `text` excluded by default
+    - Note: `documentIds` and `excludeProperties` are not supported on this endpoint
+
+- **`GET /v1/deepphe-api/deepphe/patient/{patientId}/documents`**
+    - Get all documents for a patient (full document endpoint)
     - Query Parameters:
         - `documentIds` (optional) - Comma-separated list of document IDs to filter by
         - `excludeProperties` (optional) - Comma-separated list of properties to exclude (e.g.,
@@ -110,63 +114,65 @@ http://localhost:3000/api-docs
 
 ### Patient Concepts
 
-- `GET /v1/dphe-data/patient/concepts/` - Get all concepts for a patient
-- `GET /v1/dphe-data/patient/conceptRelations/` - Get concept relations for a patient
-
-### Cancer Data
-
-- `GET /v1/dphe-data/patient/cancers` - Get all cancers for a patient
+- `GET /v1/deepphe-api/deepphe/patient/concepts/` - Get all concepts for a patient
+- `GET /v1/deepphe-api/deepphe/patient/conceptRelations/` - Get concept relations for a patient
 
 ### Group Data
 
 #### Attributes
-- `GET /v1/dphe-data/attributes/classes` - Get all unique attribute classes
-- `GET /v1/dphe-data/attributes/instances` - Get all attribute instances for a specific class
+- `GET /v1/deepphe-api/deepphe/attributes/classes` - Get all unique attribute classes
+- `GET /v1/deepphe-api/deepphe/attributes/instances` - Get all attribute instances for a specific class
   - Query Parameters:
     - `groupname` (required) - The attribute group name to filter by
 
 #### Cancers
-- `GET /v1/dphe-data/cancers/classes` - Get all unique cancer classes
-- `GET /v1/dphe-data/cancers/instances` - Get all cancer instances for a specific class
+- `GET /v1/deepphe-api/deepphe/cancers/classes` - Get all unique cancer classes
+- `GET /v1/deepphe-api/deepphe/cancers/instances` - Get all cancer instances for a specific class
   - Query Parameters:
     - `classUri` (required) - The cancer group classUri to filter by
 
 #### Concepts
-- `GET /v1/dphe-data/concepts/classes` - Get all unique concept classes
-- `GET /v1/dphe-data/concepts/instances` - Get all concept instances for a specific class
+- `GET /v1/deepphe-api/deepphe/concepts/classes` - Get all unique concept classes
+- `GET /v1/deepphe-api/deepphe/concepts/instances` - Get all concept instances for a specific class
   - Query Parameters:
     - `dpheGroup` (required) - The concept group dpheGroup to filter by
 
 ## 📖 API Examples
 
+### Get Patient Documents (Text Excluded by Default)
+
+```bash
+curl http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789
+```
+
 ### Get All Documents for a Patient
 
 ```bash
-curl http://localhost:3000/v1/dphe-data/patient/123456789/documents
+curl http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents
 ```
 
 ### Get Specific Documents by ID
 
 ```bash
-curl "http://localhost:3000/v1/dphe-data/patient/123456789/documents?documentIds=123456789_D_100,123456789_D_101"
+curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100,123456789_D_101"
 ```
 
 ### Get Documents Without Text Content
 
 ```bash
-curl "http://localhost:3000/v1/dphe-data/patient/123456789/documents?excludeProperties=text"
+curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?excludeProperties=text"
 ```
 
 ### Get Documents Excluding Multiple Properties
 
 ```bash
-curl "http://localhost:3000/v1/dphe-data/patient/123456789/documents?excludeProperties=text,mentions,mentionRelations"
+curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?excludeProperties=text,mentions,mentionRelations"
 ```
 
 ### Combine Filters
 
 ```bash
-curl "http://localhost:3000/v1/dphe-data/patient/123456789/documents?documentIds=123456789_D_100&excludeProperties=text,mentions"
+curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100&excludeProperties=text,mentions"
 ```
 
 ## 🧪 Testing
@@ -218,105 +224,6 @@ To change the database location:
 
 1. Edit `src/config/database.js`, OR
 2. Set `DB_PATH` in your `.env` file
-
-## 🎯 Cohort Filter Categories Endpoint (MySQL)
-
-The API now includes a MySQL-based endpoint for filtering patients by demographic categories:
-
-**Endpoint:** `GET /v1/dphe-data/cohort/filter/categories/patients`
-
-**Parameters:**
-
-- `category` (required): `GENDER`, `RACE`, or `ETHNICITY`
-- `countOnly` (optional): `true` | `false` - Returns counts instead of patient IDs (10-100x faster)
-- `compress` (optional): `true` | `false` - Returns gzipped response (85-90% smaller, safe for full data!)
-- `limit` (optional): `1-10000` - Max patient IDs per category (prevents browser freezing)
-
-**⚡ Performance:** This endpoint is now **cached on startup** for instant responses (5-20ms vs 800ms+)!
-
-**⚠️ WARNING:** Without `countOnly=true` or `limit`, this returns 78k+ patient IDs which **will freeze your
-**⚠️ WARNING:** Without `countOnly=true`, `compress=true`, or `limit`, this returns 78k+ patient IDs which **will freeze
-your browser/Swagger UI**!
-
-**Example:**
-
-```bash
-# Option 1: Get counts only (FASTEST - for statistics/dashboards)
-curl "http://localhost:3000/v1/dphe-data/cohort/filter/categories/patients?category=GENDER&countOnly=true"
-
-# Option 2: Get ALL patient IDs compressed (NEW! - 87% smaller, safe for browsers)
-curl "http://localhost:3000/v1/dphe-data/cohort/filter/categories/patients?category=GENDER&compress=true"
-
-# Option 3: Get limited patient IDs (safe for samples)
-curl "http://localhost:3000/v1/dphe-data/cohort/filter/categories/patients?category=GENDER&limit=100"
-
-# Option 4: Get all uncompressed (⚠️ WARNING: May freeze browser! Use cURL or backend only)
-curl "http://localhost:3000/v1/dphe-data/cohort/filter/categories/patients?category=GENDER"
-```
-
-**Response:**
-
-```json
-{
-  "GENDER.F": ["9555555481", "9555555879", ...],
-  "GENDER.M": ["9555534801", "9555457322", ...],
-  "GENDER.U": ["9557213068", "9557734035", ...]
-}
-```
-
-### MySQL Configuration
-
-Add these to your `.env` file:
-
-```bash
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_USER=your_username
-MYSQL_PASSWORD=your_password
-MYSQL_DATABASE=your_database_name
-```
-
-### Documentation
-
-#### General Documentation
-
-- **SUCCESS_REPORT.md** - ✅ Test results showing the endpoint is fully functional
-- **COHORT_FILTER_SETUP.md** - Complete setup and testing guide
-- **MYSQL_TESTING.md** - Detailed testing instructions
-- **TABLE_NAME_FIX.md** - Table name case sensitivity documentation
-- **docs/COHORT_FILTER_CATEGORIES.md** - Full API documentation
-- **COHORT_FILTER_QUICK_REF.md** - Quick reference guide
-
-#### Count-Only Feature
-
-- **COUNT_ONLY_FEATURE.md** - 📊 Comprehensive count-only documentation
-- **COUNT_ONLY_VISUAL_GUIDE.md** - 🎨 Visual guide with examples
-- **COUNT_ONLY_IMPLEMENTATION.md** - 🔧 Implementation details
-
-#### Caching Feature
-
-- **CACHING_FEATURE.md** - ⚡ Category caching documentation (100x faster!)
-- **CACHING_PRODUCTION_VERIFIED.md** - ✅ Production performance verification
-
-#### Browser Freezing Fix (Important!)
-
-- **BROWSER_FREEZING_FIX.md** - 🔧 How to avoid browser freezing with large responses
-
-### Testing
-
-```bash
-# Test MySQL connection directly
-node test-mysql-connection.js
-
-# Test the full endpoint
-node test-category-filter.js
-
-# Test the count-only feature (performance comparison)
-node test-count-only.js
-
-# Test the caching feature (verify instant responses)
-node test-cache.js
-```
 
 ## 🔐 Security Notes
 

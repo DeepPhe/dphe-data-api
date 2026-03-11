@@ -541,6 +541,115 @@ class SQLiteClient {
     }
 
     /**
+     * Get sequential ID for a patient ID from patient_id_mapping
+     * @param {string} patientId - Patient ID
+     * @returns {Promise<number|null>} Sequential ID or null if not found
+     */
+    async getSequentialIdForPatient(patientId) {
+        return new Promise((resolve, reject) => {
+            if (!this.isOpen) {
+                return reject(new Error('Database is not open'));
+            }
+
+            this.db.get(
+                'SELECT sequential_id FROM patient_id_mapping WHERE patient_id = ? LIMIT 1',
+                [String(patientId)],
+                (err, row) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    resolve(row ? row.sequential_id : null);
+                }
+            );
+        });
+    }
+
+    /**
+     * Filter rows to only those that contain a specific patient in their bitmap
+     * @param {Array<Object>} rows - Rows containing patient bitmap fields
+     * @param {string} patientId - Patient ID to match
+     * @param {boolean} includePatientIds - Whether to include patientIds in matching rows
+     * @returns {Promise<Array<Object>>} Filtered rows for the patient
+     */
+    async filterRowsByPatientId(rows, patientId, includePatientIds = false) {
+        if (!this.isOpen) {
+            throw new Error('Database is not open');
+        }
+
+        const sequentialId = await this.getSequentialIdForPatient(patientId);
+        if (sequentialId === null || sequentialId === undefined) {
+            return [];
+        }
+
+        const matchingRows = [];
+
+        for (const row of rows) {
+            const processedRow = { ...row };
+
+            let bitmapSource = null;
+            let sourceType = null;
+
+            if (processedRow.patient_bitmap) {
+                bitmapSource = processedRow.patient_bitmap;
+                sourceType = 'blob';
+            } else if (processedRow.patientbitmap) {
+                bitmapSource = processedRow.patientbitmap;
+                sourceType = 'base64';
+            } else {
+                continue;
+            }
+
+            const bitmap = await this.decodeBitmap(bitmapSource, sourceType);
+            if (!bitmap.has(sequentialId)) {
+                continue;
+            }
+
+            if (includePatientIds) {
+                processedRow.patientIds = await this.patientBitmapToPatientIds(bitmapSource, sourceType);
+            }
+
+            delete processedRow.patient_bitmap;
+            delete processedRow.patientbitmap;
+            matchingRows.push(processedRow);
+        }
+
+        return matchingRows;
+    }
+
+    /**
+     * Run a query and return only rows that include a specific patient in the bitmap
+     * @param {string} sql - SQL query
+     * @param {Array<any>} params - Query params
+     * @param {string} patientId - Patient ID to match
+     * @param {boolean} includePatientIds - Whether to include patientIds in matching rows
+     * @returns {Promise<Array<Object>>} Filtered rows
+     */
+    async getRowsForPatient(sql, params, patientId, includePatientIds = false) {
+        return new Promise((resolve, reject) => {
+            if (!this.isOpen) {
+                return reject(new Error('Database is not open'));
+            }
+
+            this.db.all(sql, params, async (err, rows) => {
+                if (err) {
+                    return reject(err);
+                }
+
+                try {
+                    const filteredRows = await this.filterRowsByPatientId(
+                        rows,
+                        patientId,
+                        includePatientIds
+                    );
+                    resolve(filteredRows);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    /**
      * Get all attribute instances for a specific group
      * @param {string} groupname - The group name to filter by
      * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: true)
@@ -607,6 +716,22 @@ class SQLiteClient {
                 }
             );
         });
+    }
+
+    /**
+     * Get attribute instances for a specific group that contain a specific patient
+     * @param {string} groupname - The group name to filter by
+     * @param {string} patientId - Patient ID to match
+     * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: false)
+     * @returns {Promise<Array<Object>>} - Array of attribute instances for the patient
+     */
+    async getAttributesInstancesForPatient(groupname, patientId, includePatientIds = false) {
+        return this.getRowsForPatient(
+            'SELECT * FROM attributes_by_group WHERE attribute_name = ? ORDER BY attribute_name',
+            [groupname],
+            patientId,
+            includePatientIds
+        );
     }
 
     /**
@@ -679,6 +804,22 @@ class SQLiteClient {
     }
 
     /**
+     * Get cancer instances for a specific class that contain a specific patient
+     * @param {string} classUri - The classUri to filter by
+     * @param {string} patientId - Patient ID to match
+     * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: false)
+     * @returns {Promise<Array<Object>>} - Array of cancer instances for the patient
+     */
+    async getCancersInstancesForPatient(classUri, patientId, includePatientIds = false) {
+        return this.getRowsForPatient(
+            'SELECT * FROM cancers_by_group WHERE classUri = ? ORDER BY classUri',
+            [classUri],
+            patientId,
+            includePatientIds
+        );
+    }
+
+    /**
      * Get all concept instances for a specific class
      * @param {string} dpheGroup - The dpheGroup to filter by
      * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: true)
@@ -745,6 +886,22 @@ class SQLiteClient {
                 }
             );
         });
+    }
+
+    /**
+     * Get concept instances for a specific class that contain a specific patient
+     * @param {string} dpheGroup - The dpheGroup to filter by
+     * @param {string} patientId - Patient ID to match
+     * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: false)
+     * @returns {Promise<Array<Object>>} - Array of concept instances for the patient
+     */
+    async getConceptsInstancesForPatient(dpheGroup, patientId, includePatientIds = false) {
+        return this.getRowsForPatient(
+            'SELECT * FROM concepts_by_group WHERE dpheGroup = ? ORDER BY dpheGroup',
+            [dpheGroup],
+            patientId,
+            includePatientIds
+        );
     }
 
     /**
@@ -828,6 +985,40 @@ class SQLiteClient {
                 }
             );
         });
+    }
+
+    /**
+     * Get OMOP instances for a specific class that contain a specific patient
+     * @param {string} omopClass - The OMOP class to filter by
+     * @param {string} patientId - Patient ID to match
+     * @param {boolean} includePatientIds - Whether to include patientIds in the response (default: false)
+     * @returns {Promise<Array<Object>>} - Array of OMOP instances for the patient
+     */
+    async getOmopInstancesForPatient(omopClass, patientId, includePatientIds = false) {
+        if (!this.isOpen) {
+            throw new Error('Database is not open');
+        }
+
+        const className = String(omopClass || '').toUpperCase();
+        const omopClassConfig = {
+            AGE_AT_DX: { table: 'omop_age_at_dx', valueColumn: 'age_at_dx' },
+            ETHNICITY: { table: 'omop_ethnicity', valueColumn: 'ethnicity' },
+            GENDER: { table: 'omop_gender', valueColumn: 'gender' },
+            RACE: { table: 'omop_race', valueColumn: 'race' },
+            CANCER: { table: 'omop_cancers', valueColumn: 'cancer' }
+        };
+
+        const config = omopClassConfig[className];
+        if (!config) {
+            throw new Error(`Invalid OMOP class: ${omopClass}`);
+        }
+
+        return this.getRowsForPatient(
+            `SELECT * FROM ${config.table} ORDER BY ${config.valueColumn}`,
+            [],
+            patientId,
+            includePatientIds
+        );
     }
 
     /**

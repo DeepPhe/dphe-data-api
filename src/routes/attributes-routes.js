@@ -4,11 +4,11 @@ const attributesController = require("../controllers/attributes-controller");
 
 /**
  * @openapi
- * /v1/dphe-data/attributes/classes:
+ * /v1/deepphe-api/deepphe/attributes/classes:
  *   get:
  *     summary: Get all unique attribute classes
  *     description: Returns list of unique attribute class names
- *     tags: [Attributes]
+ *     tags: [DeepPhe]
  *     responses:
  *       200:
  *         description: List of attribute class names
@@ -25,11 +25,11 @@ router.get("/classes", attributesController.getAttributesClasses);
 
 /**
  * @openapi
- * /v1/dphe-data/attributes/instances:
+ * /v1/deepphe-api/deepphe/attributes/instances:
  *   get:
  *     summary: Get all attribute instances for a specific class
  *     description: Returns list of attribute objects for a specific class (without patientIds)
- *     tags: [Attributes]
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
  *         name: groupname
@@ -91,11 +91,11 @@ router.get("/instances", attributesController.getAttributesInstances);
 
 /**
  * @openapi
- * /v1/dphe-data/attributes/instances/patients:
+ * /v1/deepphe-api/deepphe/attributes/instances/patients:
  *   get:
  *     summary: Get all attribute instances for a specific class including patientIds
  *     description: Returns list of attribute objects for a specific class with patientIds
- *     tags: [Attributes]
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
  *         name: groupname
@@ -114,5 +114,38 @@ router.get("/instances", attributesController.getAttributesInstances);
  *         description: Internal server error
  */
 router.get("/instances/patients", attributesController.getAttributesInstances);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/attributes/instances/patient/{patientId}:
+ *   get:
+ *     summary: Get attribute instances for a specific class and patient
+ *     description: Returns attribute rows where the specified patient appears
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *       - in: query
+ *         name: groupname
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Group name
+ *     responses:
+ *       200:
+ *         description: List of matching attributes
+ *       400:
+ *         description: Missing required parameters
+ *       404:
+ *         description: No attributes found for this class and patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/instances/patient/:patientId", attributesController.getAttributesInstancesForPatient);
+router.get("/instances/patient/:patientId/patients", attributesController.getAttributesInstancesForPatient);
 
 module.exports = router;

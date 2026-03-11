@@ -4,11 +4,41 @@ const patientDocumentController = require("../controllers/patient-document-contr
 
 /**
  * @openapi
- * /v1/dphe-data/patient/{patientId}/documents:
+ * /v1/deepphe-api/deepphe/patient/{patientId}:
+ *   get:
+ *     summary: Get patient documents with text excluded by default
+ *     description: Returns list of DocumentXn objects for a specific patient, with the text field excluded.
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: List of DocumentXn objects without text
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/DocumentXn'
+ *       400:
+ *         description: Missing or invalid patientId
+ *       404:
+ *         description: Patient not found
+ */
+router.get("/:patientId", patientDocumentController.getPatient);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/patient/{patientId}/documents:
  *   get:
  *     summary: Get all documents for a patient
- *     description: Returns list of all DocumentXn objects for a specific patient. Each document includes mentions, mentionRelations, sections, and other properties.
- *     tags: [Documents]
+ *     description: Returns list of all DocumentXn objects for a specific patient with optional property exclusions.
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: path
  *         name: patientId
@@ -47,4 +77,3 @@ const patientDocumentController = require("../controllers/patient-document-contr
 router.get("/:patientId/documents", patientDocumentController.getDocuments);
 
 module.exports = router;
-

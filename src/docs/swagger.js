@@ -6,6 +6,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: { title: 'DeepPhe Data API', version: '1.0.0' },
+    tags: [
+      { name: 'DeepPhe', description: 'DeepPhe endpoints' }
+    ],
     components: {
       schemas: generatedComponents.schemas || generatedComponents,
     },

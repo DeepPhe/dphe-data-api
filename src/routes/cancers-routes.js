@@ -4,11 +4,11 @@ const cancersController = require("../controllers/cancers-controller");
 
 /**
  * @openapi
- * /v1/dphe-data/cancers/classes:
+ * /v1/deepphe-api/deepphe/cancers/classes:
  *   get:
  *     summary: Get all unique cancer classes
  *     description: Returns list of unique cancer class classUri values
- *     tags: [Cancers]
+ *     tags: [DeepPhe]
  *     responses:
  *       200:
  *         description: List of cancer class classUri values
@@ -25,11 +25,11 @@ router.get("/classes", cancersController.getCancersClasses);
 
 /**
  * @openapi
- * /v1/dphe-data/cancers/instances:
+ * /v1/deepphe-api/deepphe/cancers/instances:
  *   get:
  *     summary: Get all cancer instances for a specific class
  *     description: Returns list of cancer objects for a specific class (without patientIds)
- *     tags: [Cancers]
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
  *         name: classUri
@@ -87,11 +87,11 @@ router.get("/instances", cancersController.getCancersInstances);
 
 /**
  * @openapi
- * /v1/dphe-data/cancers/instances/patients:
+ * /v1/deepphe-api/deepphe/cancers/instances/patients:
  *   get:
  *     summary: Get all cancer instances for a specific class including patientIds
  *     description: Returns list of cancer objects for a specific class with patientIds
- *     tags: [Cancers]
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
  *         name: classUri
@@ -110,5 +110,38 @@ router.get("/instances", cancersController.getCancersInstances);
  *         description: Internal server error
  */
 router.get("/instances/patients", cancersController.getCancersInstances);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/cancers/instances/patient/{patientId}:
+ *   get:
+ *     summary: Get cancer instances for a specific class and patient
+ *     description: Returns cancer rows where the specified patient appears
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *       - in: query
+ *         name: classUri
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Class URI
+ *     responses:
+ *       200:
+ *         description: List of matching cancers
+ *       400:
+ *         description: Missing required parameters
+ *       404:
+ *         description: No cancers found for this class and patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/instances/patient/:patientId", cancersController.getCancersInstancesForPatient);
+router.get("/instances/patient/:patientId/patients", cancersController.getCancersInstancesForPatient);
 
 module.exports = router;

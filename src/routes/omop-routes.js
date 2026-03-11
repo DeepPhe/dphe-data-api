@@ -4,7 +4,7 @@ const omopController = require("../controllers/omop-controller");
 
 /**
  * @openapi
- * /v1/dphe-data/omop/classes:
+ * /v1/deepphe-api/omop/classes:
  *   get:
  *     summary: Get all supported OMOP classes
  *     description: Returns list of OMOP class names available for OMOP instances queries
@@ -23,24 +23,12 @@ const omopController = require("../controllers/omop-controller");
  */
 router.get("/classes", omopController.getOmopClasses);
 
-/**
- * @openapi
- * /v1/dphe-data/omop/classes/patients:
- *   get:
- *     summary: Get all supported OMOP classes (patients route alias)
- *     description: Alias of /v1/dphe-data/omop/classes
- *     tags: [OMOP]
- *     responses:
- *       200:
- *         description: List of OMOP class names
- *       500:
- *         description: Internal server error
- */
+// Alias route kept for compatibility; intentionally hidden from Swagger docs.
 router.get("/classes/patients", omopController.getOmopClasses);
 
 /**
  * @openapi
- * /v1/dphe-data/omop/instances:
+ * /v1/deepphe-api/omop/instances:
  *   get:
  *     summary: Get all OMOP instances for a specific class
  *     description: Returns OMOP rows from one of the OMOP tables by class (without patientIds)
@@ -73,7 +61,7 @@ router.get("/instances", omopController.getOmopInstances);
 
 /**
  * @openapi
- * /v1/dphe-data/omop/instances/patients:
+ * /v1/deepphe-api/omop/instances/patients:
  *   get:
  *     summary: Get all OMOP instances for a specific class including patientIds
  *     description: Returns OMOP rows from one of the OMOP tables by class with patientIds
@@ -100,7 +88,41 @@ router.get("/instances/patients", omopController.getOmopInstances);
 
 /**
  * @openapi
- * /v1/dphe-data/omop/{personid}/{attribute}:
+ * /v1/deepphe-api/omop/instances/patient/{patientId}:
+ *   get:
+ *     summary: Get OMOP instances for a specific class and patient
+ *     description: Returns OMOP rows where the specified patient appears
+ *     tags: [OMOP]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *       - in: query
+ *         name: attribute
+ *         schema:
+ *           type: string
+ *           enum: [AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER]
+ *         required: true
+ *         description: OMOP class to retrieve
+ *     responses:
+ *       200:
+ *         description: Matching OMOP class rows for the patient
+ *       400:
+ *         description: Missing or invalid required parameters
+ *       404:
+ *         description: No OMOP rows found for this class and patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/instances/patient/:patientId", omopController.getOmopInstancesForPatient);
+router.get("/instances/patient/:patientId/patients", omopController.getOmopInstancesForPatient);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/omop/{personid}/{attribute}:
  *   get:
  *     summary: Get OMOP instances for a specific class (legacy path format)
  *     description: Legacy-compatible OMOP route that returns OMOP rows by class (without patientIds)
@@ -139,7 +161,7 @@ router.get("/:personid/:attribute", omopController.getOmopAttribute);
 
 /**
  * @openapi
- * /v1/dphe-data/omop/{personid}/{attribute}/patients:
+ * /v1/deepphe-api/omop/{personid}/{attribute}/patients:
  *   get:
  *     summary: Get OMOP instances for a specific class with patientIds (legacy path format)
  *     description: Legacy-compatible OMOP route that returns OMOP rows by class with patientIds

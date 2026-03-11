@@ -45,6 +45,41 @@ async function respondWithOmopInstances(attribute, includePatientIds, res) {
 }
 
 /**
+ * Shared handler for OMOP instances responses filtered by patient.
+ * @param {string} attribute - OMOP class
+ * @param {string} patientId - Patient ID
+ * @param {boolean} includePatientIds - Include patient IDs in response
+ * @param {Object} res - Express response object
+ * @returns {Promise<void>}
+ */
+async function respondWithOmopInstancesForPatient(attribute, patientId, includePatientIds, res) {
+  const normalizedAttribute = normalizeOmopClass(attribute);
+
+  if (!normalizedAttribute) {
+    return res.status(400).json({
+      error: `Invalid attribute type. Must be one of: ${VALID_OMOP_CLASSES.join(', ')}`
+    });
+  }
+
+  const db = getInstance();
+  await db.open();
+
+  const omopInstances = await db.getOmopInstancesForPatient(
+    normalizedAttribute,
+    patientId,
+    includePatientIds
+  );
+
+  if (!omopInstances || omopInstances.length === 0) {
+    return res.status(404).json({
+      error: 'No OMOP entries found for this class and patient'
+    });
+  }
+
+  return res.status(200).json(omopInstances);
+}
+
+/**
  * Get all supported OMOP classes
  * Returns an array of OMOP class names
  *
@@ -111,6 +146,42 @@ exports.getOmopAttribute = async (req, res) => {
     return respondWithOmopInstances(attribute, includePatientIds, res);
   } catch (error) {
     console.error('Error fetching OMOP attribute:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * Get OMOP instances for a specific class and patient
+ * Returns only OMOP rows where the patient appears in the bitmap
+ *
+ * @param {Object} req - Express request object
+ * @param {string} req.params.patientId - Patient ID (required)
+ * @param {string} req.query.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
+ * @param {string} req.path - Append /patients to include patientIds
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object[]>} OMOP class instances for the patient
+ */
+exports.getOmopInstancesForPatient = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { attribute } = req.query;
+
+    if (!patientId) {
+      return res.status(400).json({
+        error: 'Missing required parameter: patientId'
+      });
+    }
+
+    if (!attribute) {
+      return res.status(400).json({
+        error: 'Missing required parameter: attribute'
+      });
+    }
+
+    const includePatientIds = /\/patients\/?$/.test(req.path);
+    return respondWithOmopInstancesForPatient(attribute, patientId, includePatientIds, res);
+  } catch (error) {
+    console.error('Error fetching OMOP instances for class and patient:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

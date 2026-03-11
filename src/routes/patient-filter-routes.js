@@ -4,7 +4,7 @@ const patientFilterController = require("../controllers/patient-filter-controlle
 //
 // /**
 //  * @openapi
-//  * /v1/dphe-data/cohort/filter/categories:
+//  * /v1/deepphe-api/deepphe/cohort/filter/categories:
 //  *   get:
 //  *     summary: Get all filter categories
 //  *     description: Returns list of all possible categories
@@ -26,7 +26,7 @@ const patientFilterController = require("../controllers/patient-filter-controlle
 
 // /**
 //  * @openapi
-//  * /v1/dphe-data/cohort/filter/categories/patients:
+//  * /v1/deepphe-api/deepphe/cohort/filter/categories/patients:
 //  *   post:
 //  *     summary: Get patients by filter categories
 //  *     description: Returns patients grouped by the given categories

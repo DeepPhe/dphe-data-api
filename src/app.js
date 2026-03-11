@@ -28,6 +28,6 @@ app.get("/openapi.json", (req, res) => {
 });
 
 // Routes
-app.use("/v1/dphe-data/", dpheRoutes);
+app.use("/v1/deepphe-api/", dpheRoutes);
 
 module.exports = app;

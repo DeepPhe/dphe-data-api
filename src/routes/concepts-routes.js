@@ -4,11 +4,11 @@ const conceptsController = require("../controllers/concepts-controller");
 
 /**
  * @openapi
- * /v1/dphe-data/concepts/classes:
+ * /v1/deepphe-api/deepphe/concepts/classes:
  *   get:
  *     summary: Get all unique concept classes
  *     description: Returns list of unique concept class dpheGroup values
- *     tags: [Concepts]
+ *     tags: [DeepPhe]
  *     responses:
  *       200:
  *         description: List of concept class dpheGroup values
@@ -25,11 +25,11 @@ router.get("/classes", conceptsController.getConceptsClasses);
 
 /**
  * @openapi
- * /v1/dphe-data/concepts/instances:
+ * /v1/deepphe-api/deepphe/concepts/instances:
  *   get:
  *     summary: Get all concept instances for a specific class
  *     description: Returns list of concept objects for a specific class (without patientIds)
- *     tags: [Concepts]
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
  *         name: dpheGroup
@@ -91,11 +91,11 @@ router.get("/instances", conceptsController.getConceptsInstances);
 
 /**
  * @openapi
- * /v1/dphe-data/concepts/instances/patients:
+ * /v1/deepphe-api/deepphe/concepts/instances/patients:
  *   get:
  *     summary: Get all concept instances for a specific class including patientIds
  *     description: Returns list of concept objects for a specific class with patientIds
- *     tags: [Concepts]
+ *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
  *         name: dpheGroup
@@ -114,5 +114,38 @@ router.get("/instances", conceptsController.getConceptsInstances);
  *         description: Internal server error
  */
 router.get("/instances/patients", conceptsController.getConceptsInstances);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/concepts/instances/patient/{patientId}:
+ *   get:
+ *     summary: Get concept instances for a specific class and patient
+ *     description: Returns concept rows where the specified patient appears
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *       - in: query
+ *         name: dpheGroup
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: DPHE Group
+ *     responses:
+ *       200:
+ *         description: List of matching concepts
+ *       400:
+ *         description: Missing required parameters
+ *       404:
+ *         description: No concepts found for this class and patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/instances/patient/:patientId", conceptsController.getConceptsInstancesForPatient);
+router.get("/instances/patient/:patientId/patients", conceptsController.getConceptsInstancesForPatient);
 
 module.exports = router;
