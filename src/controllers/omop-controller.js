@@ -107,7 +107,7 @@ exports.getOmopClasses = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.query.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
- * @param {string} req.path - Append /patients to include patientIds
+ * @param {string} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} OMOP class instances
  */
@@ -135,7 +135,7 @@ exports.getOmopInstances = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.params.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
- * @param {string} req.path - Append /patients to include patientIds
+ * @param {string} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} OMOP class instances
  */
@@ -157,7 +157,7 @@ exports.getOmopAttribute = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID (required)
  * @param {string} req.query.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
- * @param {string} req.path - Append /patients to include patientIds
+ * @param {string} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} OMOP class instances for the patient
  */

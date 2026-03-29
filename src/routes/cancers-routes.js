@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const cancersController = require("../controllers/cancers-controller");
+const summaryController = require("../controllers/summary-controller");
 
 /**
  * @openapi
@@ -25,10 +26,53 @@ router.get("/classes", cancersController.getCancersClasses);
 
 /**
  * @openapi
+ * /v1/deepphe-api/deepphe/cancers/summary:
+ *   get:
+ *     summary: Get all cancer classes and instances in one response
+ *     description: Returns cancer classes with instances grouped by class, with optional patient identifier data
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: query
+ *         name: includePatientIds
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         required: false
+ *         description: When false, omit patient identifier arrays from instance rows
+ *     responses:
+ *       200:
+ *         description: Cancer summary payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 classes:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 instancesByClass:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                 timing:
+ *                   type: object
+ *                   properties:
+ *                     totalMs:
+ *                       type: number
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/summary", summaryController.getCancersSummary);
+
+/**
+ * @openapi
  * /v1/deepphe-api/deepphe/cancers/instances:
  *   get:
  *     summary: Get all cancer instances for a specific class
- *     description: Returns list of cancer objects for a specific class (without patientIds)
+ *     description: Returns list of cancer objects for a specific class (without patient identifier arrays)
  *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
@@ -89,8 +133,8 @@ router.get("/instances", cancersController.getCancersInstances);
  * @openapi
  * /v1/deepphe-api/deepphe/cancers/instances/patients:
  *   get:
- *     summary: Get all cancer instances for a specific class including patientIds
- *     description: Returns list of cancer objects for a specific class with patientIds
+ *     summary: Get all cancer instances for a specific class including patient identifiers
+ *     description: Returns list of cancer objects for a specific class with patient identifier arrays
  *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
@@ -101,7 +145,7 @@ router.get("/instances", cancersController.getCancersInstances);
  *         description: Class URI
  *     responses:
  *       200:
- *         description: List of cancers with patientIds
+ *         description: List of cancers with patient identifier arrays
  *       400:
  *         description: Missing required parameters
  *       404:

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const attributesController = require("../controllers/attributes-controller");
+const summaryController = require("../controllers/summary-controller");
 
 /**
  * @openapi
@@ -25,10 +26,53 @@ router.get("/classes", attributesController.getAttributesClasses);
 
 /**
  * @openapi
+ * /v1/deepphe-api/deepphe/attributes/summary:
+ *   get:
+ *     summary: Get all attribute classes and instances in one response
+ *     description: Returns attribute classes with instances grouped by class, with optional patient identifier data
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: query
+ *         name: includePatientIds
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         required: false
+ *         description: When false, omit patient identifier arrays from instance rows
+ *     responses:
+ *       200:
+ *         description: Attribute summary payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 classes:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 instancesByClass:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                 timing:
+ *                   type: object
+ *                   properties:
+ *                     totalMs:
+ *                       type: number
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/summary", summaryController.getAttributesSummary);
+
+/**
+ * @openapi
  * /v1/deepphe-api/deepphe/attributes/instances:
  *   get:
  *     summary: Get all attribute instances for a specific class
- *     description: Returns list of attribute objects for a specific class (without patientIds)
+ *     description: Returns list of attribute objects for a specific class (without patient identifier arrays)
  *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
@@ -93,8 +137,8 @@ router.get("/instances", attributesController.getAttributesInstances);
  * @openapi
  * /v1/deepphe-api/deepphe/attributes/instances/patients:
  *   get:
- *     summary: Get all attribute instances for a specific class including patientIds
- *     description: Returns list of attribute objects for a specific class with patientIds
+ *     summary: Get all attribute instances for a specific class including patient identifiers
+ *     description: Returns list of attribute objects for a specific class with patient identifier arrays
  *     tags: [DeepPhe]
  *     parameters:
  *       - in: query
@@ -105,7 +149,7 @@ router.get("/instances", attributesController.getAttributesInstances);
  *         description: Group name
  *     responses:
  *       200:
- *         description: List of attributes with patientIds
+ *         description: List of attributes with patient identifier arrays
  *       400:
  *         description: Missing required parameters
  *       404:

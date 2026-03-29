@@ -29,7 +29,7 @@ exports.getConceptsClasses = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.query.dpheGroup - DPHE Group (required)
- * @param {boolean} req.path - Append /patients to include patientIds
+ * @param {boolean} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of concept objects
  */
@@ -72,7 +72,7 @@ exports.getConceptsInstances = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID (required)
  * @param {string} req.query.dpheGroup - DPHE Group (required)
- * @param {string} req.path - Append /patients to include patientIds
+ * @param {string} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of concept objects for the patient
  */

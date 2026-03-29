@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const omopController = require("../controllers/omop-controller");
+const summaryController = require("../controllers/summary-controller");
 
 /**
  * @openapi
@@ -28,10 +29,53 @@ router.get("/classes/patients", omopController.getOmopClasses);
 
 /**
  * @openapi
+ * /v1/deepphe-api/omop/summary:
+ *   get:
+ *     summary: Get all OMOP classes and instances in one response
+ *     description: Returns OMOP classes with instances grouped by class, with optional patient identifier data
+ *     tags: [OMOP]
+ *     parameters:
+ *       - in: query
+ *         name: includePatientIds
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         required: false
+ *         description: When false, omit patient identifier arrays from instance rows
+ *     responses:
+ *       200:
+ *         description: OMOP summary payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 classes:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                 instancesByClass:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                 timing:
+ *                   type: object
+ *                   properties:
+ *                     totalMs:
+ *                       type: number
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/summary", summaryController.getOmopSummary);
+
+/**
+ * @openapi
  * /v1/deepphe-api/omop/instances:
  *   get:
  *     summary: Get all OMOP instances for a specific class
- *     description: Returns OMOP rows from one of the OMOP tables by class (without patientIds)
+ *     description: Returns OMOP rows from one of the OMOP tables by class (without patient identifier arrays)
  *     tags: [OMOP]
  *     parameters:
  *       - in: query
@@ -63,8 +107,8 @@ router.get("/instances", omopController.getOmopInstances);
  * @openapi
  * /v1/deepphe-api/omop/instances/patients:
  *   get:
- *     summary: Get all OMOP instances for a specific class including patientIds
- *     description: Returns OMOP rows from one of the OMOP tables by class with patientIds
+ *     summary: Get all OMOP instances for a specific class including patient identifiers
+ *     description: Returns OMOP rows from one of the OMOP tables by class with patient identifier arrays
  *     tags: [OMOP]
  *     parameters:
  *       - in: query
@@ -76,7 +120,7 @@ router.get("/instances", omopController.getOmopInstances);
  *         description: OMOP class to retrieve
  *     responses:
  *       200:
- *         description: OMOP class rows with patientIds
+ *         description: OMOP class rows with patient identifier arrays
  *       400:
  *         description: Missing or invalid required parameters
  *       404:
@@ -125,7 +169,7 @@ router.get("/instances/patient/:patientId/patients", omopController.getOmopInsta
  * /v1/deepphe-api/omop/{personid}/{attribute}:
  *   get:
  *     summary: Get OMOP instances for a specific class (legacy path format)
- *     description: Legacy-compatible OMOP route that returns OMOP rows by class (without patientIds)
+ *     description: Legacy-compatible OMOP route that returns OMOP rows by class (without patient identifier arrays)
  *     tags: [OMOP]
  *     parameters:
  *       - in: path
@@ -163,8 +207,8 @@ router.get("/:personid/:attribute", omopController.getOmopAttribute);
  * @openapi
  * /v1/deepphe-api/omop/{personid}/{attribute}/patients:
  *   get:
- *     summary: Get OMOP instances for a specific class with patientIds (legacy path format)
- *     description: Legacy-compatible OMOP route that returns OMOP rows by class with patientIds
+ *     summary: Get OMOP instances for a specific class with patient identifiers (legacy path format)
+ *     description: Legacy-compatible OMOP route that returns OMOP rows by class with patient identifier arrays
  *     tags: [OMOP]
  *     parameters:
  *       - in: path
@@ -182,7 +226,7 @@ router.get("/:personid/:attribute", omopController.getOmopAttribute);
  *         description: OMOP class to retrieve
  *     responses:
  *       200:
- *         description: OMOP class rows with patientIds
+ *         description: OMOP class rows with patient identifier arrays
  *       400:
  *         description: Invalid attribute type
  *       404:

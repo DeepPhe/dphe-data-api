@@ -29,7 +29,7 @@ exports.getCancersClasses = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {string} req.query.classUri - Class URI (required)
- * @param {boolean} req.path - Append /patients to include patientIds
+ * @param {boolean} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of cancer objects
  */
@@ -72,7 +72,7 @@ exports.getCancersInstances = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID (required)
  * @param {string} req.query.classUri - Class URI (required)
- * @param {string} req.path - Append /patients to include patientIds
+ * @param {string} req.path - Append /patients to include patient identifier arrays
  * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} Array of cancer objects for the patient
  */
