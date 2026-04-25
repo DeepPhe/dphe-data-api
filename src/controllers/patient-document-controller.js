@@ -154,6 +154,71 @@ exports.getPatient = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+/**
+ * Get a parsed patient summary payload
+ *
+ * @param {Object} req - Express request object
+ * @param {string} req.params.patientId - Patient ID from URL path (required)
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object>} Patient summary payload
+ */
+exports.getPatientSummary = async (req, res) => {
+    const patientId = req.params.patientId;
+
+    if (!patientId) {
+        return res.status(400).json({
+            message: "Patient ID is required"
+        });
+    }
+
+    try {
+        await db.open();
+        const summary = await db.getPatientSummaryByPatientId(patientId);
+
+        if (!summary) {
+            return res.status(404).json({ error: 'Not found' });
+        }
+
+        return res.status(200).json(summary);
+    } catch (error) {
+        console.error('Error fetching patient summary:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
+ * Get a patient profile payload with demographics and summary details
+ *
+ * @param {Object} req - Express request object
+ * @param {string} req.params.patientId - Patient ID from URL path (required)
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object>} Patient profile payload
+ */
+exports.getPatientProfile = async (req, res) => {
+    const patientId = req.params.patientId;
+
+    if (!patientId) {
+        return res.status(400).json({
+            message: "Patient ID is required"
+        });
+    }
+
+    try {
+        await db.open();
+        const profile = await db.getPatientProfile(patientId);
+
+        if (!profile) {
+            return res.status(404).json({ error: 'Not found' });
+        }
+
+        return res.status(200).json(profile);
+    } catch (error) {
+        console.error('Error fetching patient profile:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 exports.getPatientEpisodes = (req, res) => {
     const patientId = req.query.patientId;
 

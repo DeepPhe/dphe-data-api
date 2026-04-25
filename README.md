@@ -112,6 +112,20 @@ http://localhost:3000/api-docs
           `text,mentions,mentionRelations`)
     - Returns: Array of DocumentXn objects
 
+- **`GET /v1/deepphe-api/deepphe/patient/{patientId}/summary`**
+    - Get parsed patient summary payload from `patient_summaries`
+    - Includes demographics and summary sections (`diagnoses`, `staging`, `biomarkers`, etc.)
+
+- **`GET /v1/deepphe-api/deepphe/patient/{patientId}/profile`**
+    - Get consolidated patient profile payload
+    - Merges summary demographics + OMOP fallback values + document encounter range metadata
+
+- **`GET /v1/deepphe-api/deepphe/patient/{patientId}/cancers`**
+    - Get raw parsed `{patientId}_Cancers.json` payload
+
+- **`GET /v1/deepphe-api/deepphe/patient/{patientId}/concepts`**
+    - Get raw parsed `{patientId}_Concepts.json` payload
+
 ### Patient Concepts
 
 - `GET /v1/deepphe-api/deepphe/patient/concepts/` - Get all concepts for a patient

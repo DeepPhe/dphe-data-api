@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const patientDocumentController = require("../controllers/patient-document-controller");
+const cancersController = require("../controllers/cancers-controller");
+const conceptsController = require("../controllers/concepts-controller");
 
 /**
  * @openapi
@@ -75,5 +77,125 @@ router.get("/:patientId", patientDocumentController.getPatient);
  *         description: Patient not found
  */
 router.get("/:patientId/documents", patientDocumentController.getDocuments);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/patient/{patientId}/summary:
+ *   get:
+ *     summary: Get parsed patient summary data
+ *     description: Returns the parsed JSON payload from patient_summaries for a specific patient, including demographics and summary sections.
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: Parsed patient summary payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Missing patientId
+ *       404:
+ *         description: Summary not found for this patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/:patientId/summary", patientDocumentController.getPatientSummary);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/patient/{patientId}/profile:
+ *   get:
+ *     summary: Get consolidated patient profile data
+ *     description: Returns a profile payload that merges demographics from patient summary, OMOP fallback values, and encounter dates derived from documents.
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: Consolidated patient profile payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Missing patientId
+ *       404:
+ *         description: Profile not found for this patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/:patientId/profile", patientDocumentController.getPatientProfile);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/patient/{patientId}/cancers:
+ *   get:
+ *     summary: Get the cancers file for a patient
+ *     description: Returns the raw parsed JSON from the {patientId}_Cancers.json key-value entry in the database.
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: Cancers data for the patient
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Missing patientId
+ *       404:
+ *         description: Cancers file not found for this patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/:patientId/cancers", cancersController.getPatientCancersFile);
+
+/**
+ * @openapi
+ * /v1/deepphe-api/deepphe/patient/{patientId}/concepts:
+ *   get:
+ *     summary: Get the concepts file for a patient
+ *     description: Returns the raw parsed JSON from the {patientId}_Concepts.json key-value entry in the database.
+ *     tags: [DeepPhe]
+ *     parameters:
+ *       - in: path
+ *         name: patientId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Patient ID
+ *     responses:
+ *       200:
+ *         description: Concepts data for the patient
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       400:
+ *         description: Missing patientId
+ *       404:
+ *         description: Concepts file not found for this patient
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/:patientId/concepts", conceptsController.getPatientConceptsFile);
 
 module.exports = router;

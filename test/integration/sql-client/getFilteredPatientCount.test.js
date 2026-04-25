@@ -204,15 +204,14 @@ describe("POST /deepphe/filter/count  (integration)", () => {
       expect(e.response.status).toBe(400);
     }
   });
-  test("invalid type in filter returns 500", async () => {
+  test("invalid type in filter returns 400", async () => {
     try {
       await axios.post(`${BASE}/deepphe/filter/count`, {
         filters: [{ type: "bogus", class: "X", instances: ["Y"] }],
       });
       throw new Error("Should have returned an error");
     } catch (e) {
-      // Controller catches the thrown error and returns 500
-      expect(e.response.status).toBe(500);
+      expect(e.response.status).toBe(400);
     }
   });
   test("filter missing instances returns 400", async () => {
