@@ -1,7 +1,3 @@
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
-process.env.DB_PATH = path.resolve(__dirname, '../../../test/resources/deepphe.sqlite3');
-
 const { db } = require('../../../src/db/index');
 const { SQLiteClient } = require('../../../src/db/sqlite-client');
 
@@ -37,6 +33,9 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
         knownPatientId = String(sample.patient_id);
       }
     }
+
+    expect(knownSummaryPatientId).toBeTruthy();
+    expect(knownPatientId).toBeTruthy();
   });
 
   afterAll(async () => {
@@ -44,11 +43,6 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
   });
 
   test('returns decompressed summaries for external patient IDs', async () => {
-    if (!knownPatientId) {
-      console.log('Skipping test: no mapped patient_id discovered for patient_summaries');
-      return;
-    }
-
     const summaries = await db.getPatientSummariesByPatientIds([knownPatientId]);
 
     expect(Array.isArray(summaries)).toBe(true);
@@ -59,11 +53,6 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
   });
 
   test('supports direct summary-table patient_id lookups', async () => {
-    if (!knownSummaryPatientId) {
-      console.log('Skipping test: no patient_summaries rows discovered');
-      return;
-    }
-
     const summaries = await db.getPatientSummariesByPatientIds([knownSummaryPatientId]);
     expect(Array.isArray(summaries)).toBe(true);
     expect(summaries.length).toBeGreaterThan(0);

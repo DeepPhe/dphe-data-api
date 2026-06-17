@@ -69,6 +69,7 @@ describe('patientDocumentController.getPatientSummary', () => {
     });
 
     test('500 when summary lookup throws', async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockDb.getPatientSummaryByPatientId.mockRejectedValue(new Error('boom'));
 
         const req = { params: { patientId: 'patient123' } };
@@ -78,6 +79,7 @@ describe('patientDocumentController.getPatientSummary', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        errorSpy.mockRestore();
     });
 });
 
@@ -130,6 +132,7 @@ describe('patientDocumentController.getPatientProfile', () => {
     });
 
     test('500 when profile lookup throws', async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockDb.getPatientProfile.mockRejectedValue(new Error('boom'));
 
         const req = { params: { patientId: 'patient123' } };
@@ -139,6 +142,7 @@ describe('patientDocumentController.getPatientProfile', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        errorSpy.mockRestore();
     });
 });
 
@@ -238,6 +242,7 @@ describe('patientDocumentController.getDocumentEpisodeCounts', () => {
     });
 
     test('500 when data lookup throws', async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockDb.getByPrefix.mockRejectedValue(new Error('boom'));
 
         const req = { params: { patientId: 'patient123' }, query: {} };
@@ -247,5 +252,6 @@ describe('patientDocumentController.getDocumentEpisodeCounts', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        errorSpy.mockRestore();
     });
 });

@@ -2,12 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// Load environment variables from .env file
-require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
-
-// Set the DB_PATH environment variable to an absolute path
-process.env.DB_PATH = path.resolve(__dirname, '../../../test/resources/deepphe.sqlite3');
-
 // Import the database client
 const { db } = require('../../../src/db/index');
 
@@ -18,7 +12,6 @@ describe('SQLiteClient.decodeBitmap', () => {
   beforeAll(async () => {
     // Open the database connection before all tests
     await db.open();
-    console.log("Database opened successfully");
 
     // Create a temporary bitmap file for testing
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bitmap-test-'));
@@ -42,7 +35,6 @@ describe('SQLiteClient.decodeBitmap', () => {
   afterAll(async () => {
     // Close the database connection after all tests
     await db.close();
-    console.log("Database closed successfully");
 
     // Clean up temporary files and directory
     if (fs.existsSync(tempFilePath)) {

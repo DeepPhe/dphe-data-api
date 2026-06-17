@@ -72,6 +72,7 @@ describe('cancersController.getPatientCancersFile', () => {
     });
 
     test('500 — returns Internal server error when db throws', async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockDb.getPatientCancers.mockRejectedValue(new Error('DB exploded'));
 
         const req = { params: { patientId: 'patient123' } };
@@ -81,6 +82,7 @@ describe('cancersController.getPatientCancersFile', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        errorSpy.mockRestore();
     });
 });
 
@@ -132,6 +134,7 @@ describe('conceptsController.getPatientConceptsFile', () => {
     });
 
     test('500 — returns Internal server error when db throws', async () => {
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
         mockDb.getPatientConcepts.mockRejectedValue(new Error('DB exploded'));
 
         const req = { params: { patientId: 'patient123' } };
@@ -141,6 +144,6 @@ describe('conceptsController.getPatientConceptsFile', () => {
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' });
+        errorSpy.mockRestore();
     });
 });
-

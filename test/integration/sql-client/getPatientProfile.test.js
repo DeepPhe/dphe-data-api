@@ -1,7 +1,3 @@
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
-process.env.DB_PATH = path.resolve(__dirname, '../../../test/resources/deepphe.sqlite3');
-
 const { db } = require('../../../src/db/index');
 
 describe('SQLiteClient patient profile endpoints', () => {
@@ -35,6 +31,8 @@ describe('SQLiteClient patient profile endpoints', () => {
           ? String(sampleRow.mapped_patient_id)
           : String(sampleRow.summary_patient_id);
     }
+
+    expect(knownPatientId).toBeTruthy();
   });
 
   afterAll(async () => {
@@ -42,11 +40,6 @@ describe('SQLiteClient patient profile endpoints', () => {
   });
 
   test('getPatientSummaryByPatientId returns parsed payload when available', async () => {
-    if (!knownPatientId) {
-      console.log('Skipping test: no patient with patient_summaries data found');
-      return;
-    }
-
     const summary = await db.getPatientSummaryByPatientId(knownPatientId);
 
     expect(summary).toBeTruthy();
@@ -56,11 +49,6 @@ describe('SQLiteClient patient profile endpoints', () => {
   });
 
   test('getPatientProfile returns consolidated profile when available', async () => {
-    if (!knownPatientId) {
-      console.log('Skipping test: no patient with patient_summaries data found');
-      return;
-    }
-
     const profile = await db.getPatientProfile(knownPatientId);
 
     expect(profile).toBeTruthy();
