@@ -1,0 +1,18 @@
+services:
+  dphe-data-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dphe-data-api:latest
+    environment:
+      DB_PATH: ${DB_PATH:-./data/deepphe/deepphe_sqlite_compressed}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3333}
+    ports:
+      - "${PORT:-3333}:${PORT:-3333}"
+    volumes:
+      # SQLite is opened read/write, so keep the mounted data directory writable.
+      - ${DPHE_DATA_DIR:-./data}:/app/data
+      # Lets DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3 work from .env.
+      - ${DPHE_DB_PIPELINE_DIR:-../dphe-db-pipeline}:/dphe-db-pipeline
+    restart: unless-stopped

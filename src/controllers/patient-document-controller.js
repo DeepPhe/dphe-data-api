@@ -13,6 +13,45 @@ function parseCsv(value) {
 }
 
 /**
+ * Normalize episode values into stable, lowercase buckets
+ * @param {string|undefined|null} episode
+ * @returns {string}
+ */
+function normalizeEpisodeType(episode) {
+    const normalized = String(episode || '').trim().toLowerCase();
+
+    if (!normalized) {
+        return 'unknown';
+    }
+
+    if (normalized.includes('medical') && normalized.includes('decision')) {
+        return 'medical decision-making';
+    }
+
+    if (normalized.includes('pre') && normalized.includes('diagnostic')) {
+        return 'pre-diagnostic';
+    }
+
+    if (normalized === 'unknown') {
+        return 'unknown';
+    }
+
+    if (normalized.includes('diagnostic')) {
+        return 'diagnostic';
+    }
+
+    if (normalized.includes('treat')) {
+        return 'treatment';
+    }
+
+    if (normalized.includes('follow')) {
+        return 'follow-up';
+    }
+
+    return normalized;
+}
+
+/**
  * Retrieve and shape documents for a patient
  * @param {string} patientId - Patient ID
  * @param {string[]} documentIds - Optional document ID filter
@@ -33,30 +72,44 @@ async function fetchDocuments(patientId, documentIds = [], excludeProperties = [
     });
 
     /** @type {DocumentXn[]} */
-    let documents = documentKeys.map(({ value }) => {
+    let documents = documentKeys
+        .map(({ value }) => {
         // Ensure the document conforms to DocumentXn structure
-        const document = {
-            id: value.id,
-            name: value.name,
-            type: value.type,
-            date: value.date,
-            episode: value.episode,
-            text: value.text,
-            mentions: value.mentions || [],
-            mentionRelations: value.mentionRelations || [],
-            sections: value.sections
-        };
+            const document = {
+                id: value.id,
+                name: value.name,
+                type: value.type,
+                date: value.date,
+                episode: value.episode,
+                text: value.text,
+                mentions: value.mentions || [],
+                mentionRelations: value.mentionRelations || [],
+                sections: value.sections
+            };
 
-        // Exclude properties specified in excludeProperties parameter
-        excludeProperties.forEach(prop => {
-            delete document[prop];
-        });
+            // Keep only records that look like DocumentXn rows.
+            // Some {patientId}.json values are metadata rows and should not be treated as documents.
+            const hasDocumentShape =
+                document.type !== undefined ||
+                document.date !== undefined ||
+                document.episode !== undefined ||
+                document.text !== undefined ||
+                Array.isArray(document.sections);
+            if (!hasDocumentShape) {
+                return null;
+            }
 
-        // Remove undefined fields to keep response clean
-        return Object.fromEntries(
-            Object.entries(document).filter(([_, v]) => v !== undefined)
-        );
-    });
+            // Exclude properties specified in excludeProperties parameter
+            excludeProperties.forEach(prop => {
+                delete document[prop];
+            });
+
+            // Remove undefined fields to keep response clean
+            return Object.fromEntries(
+                Object.entries(document).filter(([_, v]) => v !== undefined)
+            );
+        })
+        .filter(Boolean);
 
     // Filter by documentIds if specified
     if (documentIds.length > 0) {
@@ -219,26 +272,38 @@ exports.getPatientProfile = async (req, res) => {
     }
 };
 
-exports.getPatientEpisodes = (req, res) => {
-    const patientId = req.query.patientId;
+/**
+ * Get episode counts for all patient documents
+ *
+ * @param {Object} req - Express request object
+ * @param {string} req.params.patientId - Patient ID from URL path (required)
+ * @param {string} [req.query.documentIds] - Optional comma-separated list of document IDs to filter by
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object>} Episode-to-count map (e.g., { unknown: 12, treatment: 6 })
+ */
+exports.getDocumentEpisodeCounts = async (req, res) => {
+    const patientId = req.params.patientId;
+    const documentIdsParam = req.query.documentIds;
 
     if (!patientId) {
-        return res.status(400).json({message: "patientId query parameter is required"});
+        return res.status(400).json({
+            message: 'Patient ID is required'
+        });
     }
 
-    // Mock data - replace with actual data retrieval logic
-    const episodes = [
-        {
-            DOCUMENT_ID: "DOC123",
-            DOCUMENT_DATE: "2023-05-15",
-            PATIENT_ID: patientId
-        },
-        {
-            DOCUMENT_ID: "DOC124",
-            DOCUMENT_DATE: "2023-06-20",
-            PATIENT_ID: patientId
-        }
-    ];
+    const documentIds = parseCsv(documentIdsParam);
 
-    res.json(episodes);
+    try {
+        const documents = await fetchDocuments(patientId, documentIds, []);
+        const episodeCounts = documents.reduce((accumulator, document) => {
+            const key = normalizeEpisodeType(document.episode);
+            accumulator[key] = Number(accumulator[key] || 0) + 1;
+            return accumulator;
+        }, {});
+
+        return res.json(episodeCounts);
+    } catch (error) {
+        console.error('Error fetching document episode counts:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
 };

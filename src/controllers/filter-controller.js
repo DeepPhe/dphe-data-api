@@ -78,6 +78,88 @@ exports.getFilteredPatientCount = async (req, res) => {
   }
 };
 
+const MAX_BATCH_SIZE = 500;
+
+/**
+ * POST /count/batch
+ *
+ * Accepts an array of independent filter queries and returns a result for each.
+ * Each query has the same shape as the body of POST /count, plus an optional
+ * `includePatientIds` boolean and `autoIncludeThreshold` integer.
+ *
+ * All queries are executed concurrently.  A per-query error is captured and
+ * returned inline (as `{ error }`) rather than failing the entire batch.
+ *
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Promise<void>}
+ */
+exports.getBatchFilteredPatientCount = async (req, res) => {
+  try {
+    const { queries } = req.body;
+
+    if (!Array.isArray(queries) || queries.length === 0) {
+      return res.status(400).json({
+        error: 'Missing required body parameter: queries (must be a non-empty array)'
+      });
+    }
+
+    if (queries.length > MAX_BATCH_SIZE) {
+      return res.status(400).json({
+        error: `Batch size ${queries.length} exceeds maximum of ${MAX_BATCH_SIZE}`
+      });
+    }
+
+    for (let q = 0; q < queries.length; q++) {
+      const query = queries[q];
+      if (!query || typeof query !== 'object') {
+        return res.status(400).json({ error: `queries[${q}] must be an object` });
+      }
+      if (!Array.isArray(query.filters) || query.filters.length === 0) {
+        return res.status(400).json({
+          error: `queries[${q}].filters must be a non-empty array`
+        });
+      }
+      for (let i = 0; i < query.filters.length; i++) {
+        const err = validateFilterItem(query.filters[i], i);
+        if (err) {
+          return res.status(400).json({ error: `queries[${q}]: ${err}` });
+        }
+      }
+    }
+
+    const db = getInstance();
+    await db.open();
+
+    const results = await Promise.all(
+      queries.map(async (query) => {
+        const includePatientIds =
+          query.includePatientIds === true ||
+          String(query.includePatientIds).toLowerCase() === 'true';
+        const rawThreshold = query.autoIncludeThreshold;
+        const autoIncludeThreshold =
+          rawThreshold !== undefined
+            ? Math.max(0, Number(rawThreshold) || 0)
+            : 20;
+        try {
+          return await db.getFilteredPatientCount(
+            query.filters,
+            includePatientIds,
+            autoIncludeThreshold
+          );
+        } catch (err) {
+          return { error: err.message || 'Query failed', count: 0, patient_ids: [] };
+        }
+      })
+    );
+
+    return res.status(200).json({ results });
+  } catch (error) {
+    console.error('Error in getBatchFilteredPatientCount:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 /**
  * POST /summary
  *

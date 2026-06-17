@@ -109,6 +109,87 @@ router.post("/count", filterController.getFilteredPatientCount);
 
 /**
  * @openapi
+ * /v1/deepphe-api/deepphe/filter/count/batch:
+ *   post:
+ *     summary: Batch count patients for multiple independent filter queries
+ *     description: |
+ *       Accepts an array of independent filter queries and returns a result for
+ *       each in positional order.  All queries are executed concurrently on the
+ *       server, replacing N sequential HTTP round trips with a single request.
+ *
+ *       Each query uses the same filter schema as POST /count.  Per-query errors
+ *       are captured and returned inline rather than failing the entire batch.
+ *     tags: [Filter]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [queries]
+ *             properties:
+ *               queries:
+ *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 500
+ *                 items:
+ *                   type: object
+ *                   required: [filters]
+ *                   properties:
+ *                     filters:
+ *                       type: array
+ *                       minItems: 1
+ *                       items:
+ *                         type: object
+ *                         required: [type, class, instances]
+ *                         properties:
+ *                           type:
+ *                             type: string
+ *                             enum: [omop, attributes, cancers, concepts]
+ *                           class:
+ *                             type: string
+ *                           instances:
+ *                             type: array
+ *                             minItems: 1
+ *                     includePatientIds:
+ *                       type: boolean
+ *                       default: false
+ *                     autoIncludeThreshold:
+ *                       type: integer
+ *                       default: 20
+ *     responses:
+ *       200:
+ *         description: Array of per-query results in positional order
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       count:
+ *                         type: integer
+ *                       patient_ids:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       timing:
+ *                         type: object
+ *                       error:
+ *                         type: string
+ *                         description: Present only when this individual query failed
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Internal server error
+ */
+router.post("/count/batch", filterController.getBatchFilteredPatientCount);
+
+/**
+ * @openapi
  * /v1/deepphe-api/deepphe/filter/summary:
  *   post:
  *     summary: Get patient summaries for a list of patient IDs

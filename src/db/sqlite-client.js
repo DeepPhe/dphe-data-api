@@ -151,6 +151,20 @@ function isPatientSummaryUnavailableError(error) {
     );
 }
 
+function isMissingSqliteTableError(error, tableName) {
+    const errorMessage = normalizeString(error && error.message);
+    if (!errorMessage) {
+        return false;
+    }
+
+    const escapedTableName = String(tableName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!escapedTableName) {
+        return /no such table:/i.test(errorMessage);
+    }
+
+    return new RegExp(`no such table:\\s*${escapedTableName}`, 'i').test(errorMessage);
+}
+
 /**
  * SQLite3 Client Wrapper
  * Provides a simplified interface for interacting with SQLite3
@@ -1246,6 +1260,9 @@ class SQLiteClient {
                 [],
                 async (err, rows) => {
                     if (err) {
+                        if (isMissingSqliteTableError(err, config.table)) {
+                            return resolve([]);
+                        }
                         return reject(err);
                     }
 
@@ -1324,12 +1341,20 @@ class SQLiteClient {
             throw new Error(`Invalid OMOP class: ${omopClass}`);
         }
 
-        return this.getRowsForPatient(
-            `SELECT * FROM ${config.table} ORDER BY ${config.valueColumn}`,
-            [],
-            patientId,
-            includePatientIds
-        );
+        try {
+            return await this.getRowsForPatient(
+                `SELECT * FROM ${config.table} ORDER BY ${config.valueColumn}`,
+                [],
+                patientId,
+                includePatientIds
+            );
+        } catch (error) {
+            if (isMissingSqliteTableError(error, config.table)) {
+                return [];
+            }
+
+            throw error;
+        }
     }
 
     /**
@@ -1498,6 +1523,21 @@ class SQLiteClient {
 
         const totalStart = process.hrtime.bigint();
 
+        const getTableColumnNames = async (tableName) => {
+            const pragmaRows = await new Promise((resolve, reject) => {
+                this.db.all(`PRAGMA table_info(${tableName})`, [], (err, rows) => {
+                    if (err) return reject(err);
+                    resolve(Array.isArray(rows) ? rows : []);
+                });
+            });
+
+            return new Set(
+                pragmaRows
+                    .map((row) => normalizeString(row && row.name).toLowerCase())
+                    .filter(Boolean)
+            );
+        };
+
         /* ── table / column lookup maps ─────────────────────────────── */
         const OMOP_CONFIG = {
             AGE_AT_DX:  { table: 'omop_age_at_dx',  valueColumn: 'age_at_dx' },
@@ -1507,10 +1547,36 @@ class SQLiteClient {
             CANCER:     { table: 'omop_cancers',     valueColumn: 'cancer' }
         };
 
+        const attributeTableColumns = await getTableColumnNames('attributes_by_group');
+        const attributeValueColumns = [];
+        if (attributeTableColumns.has('classuri')) {
+            attributeValueColumns.push('classUri');
+        }
+        if (attributeTableColumns.has('value')) {
+            attributeValueColumns.push('value');
+        }
+        if (attributeValueColumns.length === 0) {
+            throw new Error(
+                'attributes_by_group must contain either classUri or value for attribute filtering'
+            );
+        }
+
         const TYPE_CONFIG = {
-            attributes: { table: 'attributes_by_group', classColumn: 'attribute_name', valueColumn: 'classUri' },
-            cancers:    { table: 'cancers_by_group',    classColumn: null,              valueColumn: 'classUri' },
-            concepts:   { table: 'concepts_by_group',   classColumn: 'dpheGroup',       valueColumn: 'classUri' }
+            attributes: {
+                table: 'attributes_by_group',
+                classColumn: 'attribute_name',
+                valueColumns: attributeValueColumns
+            },
+            cancers: {
+                table: 'cancers_by_group',
+                classColumn: null,
+                valueColumns: ['classUri']
+            },
+            concepts: {
+                table: 'concepts_by_group',
+                classColumn: 'dpheGroup',
+                valueColumns: ['classUri']
+            }
         };
 
         /* ── Phase 1: Query — fetch bitmap blobs for every filter item ── */
@@ -1531,13 +1597,35 @@ class SQLiteClient {
             } else {
                 const cfg = TYPE_CONFIG[type];
                 if (!cfg) throw new Error(`Invalid filter type: ${type}`);
+                const valueColumns = Array.isArray(cfg.valueColumns)
+                    ? cfg.valueColumns.filter(Boolean)
+                    : [];
+                if (valueColumns.length === 0) {
+                    throw new Error(`No value columns configured for filter type: ${type}`);
+                }
                 const ph = instances.map(() => '?').join(',');
                 if (cfg.classColumn) {
-                    sql = `SELECT * FROM ${cfg.table} WHERE ${cfg.classColumn} = ? AND ${cfg.valueColumn} IN (${ph})`;
-                    params = [filterClass, ...instances];
+                    if (valueColumns.length === 1) {
+                        sql = `SELECT * FROM ${cfg.table} WHERE ${cfg.classColumn} = ? AND ${valueColumns[0]} IN (${ph})`;
+                        params = [filterClass, ...instances];
+                    } else {
+                        const valueColumnClauses = valueColumns
+                            .map((columnName) => `${columnName} IN (${ph})`)
+                            .join(' OR ');
+                        sql = `SELECT * FROM ${cfg.table} WHERE ${cfg.classColumn} = ? AND (${valueColumnClauses})`;
+                        params = [filterClass, ...valueColumns.flatMap(() => instances)];
+                    }
                 } else {
-                    sql = `SELECT * FROM ${cfg.table} WHERE ${cfg.valueColumn} IN (${ph})`;
-                    params = [...instances];
+                    if (valueColumns.length === 1) {
+                        sql = `SELECT * FROM ${cfg.table} WHERE ${valueColumns[0]} IN (${ph})`;
+                        params = [...instances];
+                    } else {
+                        const valueColumnClauses = valueColumns
+                            .map((columnName) => `${columnName} IN (${ph})`)
+                            .join(' OR ');
+                        sql = `SELECT * FROM ${cfg.table} WHERE (${valueColumnClauses})`;
+                        params = [...valueColumns.flatMap(() => instances)];
+                    }
                 }
             }
 
@@ -2009,7 +2097,9 @@ class SQLiteClient {
                 demographics: summaryDemographics,
                 diagnoses: Array.isArray(summaryObject.diagnoses) ? summaryObject.diagnoses : [],
                 staging: Array.isArray(summaryObject.staging) ? summaryObject.staging : [],
+                grading: Array.isArray(summaryObject.grading) ? summaryObject.grading : [],
                 biomarkers: Array.isArray(summaryObject.biomarkers) ? summaryObject.biomarkers : [],
+                treatments: Array.isArray(summaryObject.treatments) ? summaryObject.treatments : [],
                 procedures: Array.isArray(summaryObject.procedures) ? summaryObject.procedures : [],
                 findings: Array.isArray(summaryObject.findings) ? summaryObject.findings : [],
                 behavior: Array.isArray(summaryObject.behavior) ? summaryObject.behavior : [],

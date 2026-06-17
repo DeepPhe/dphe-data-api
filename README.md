@@ -47,7 +47,7 @@ This project uses SQLite3 as an embedded database with a key-value store interfa
 The database path is configured in `src/config/database.js` and can be overridden with the `DB_PATH` environment
 variable.
 
-Default location: `./data/deepphe/deepphe_db`
+Default location: `./data/deepphe/deepphe_sqlite_compressed`
 
 ### Database Schema
 
@@ -88,12 +88,39 @@ This starts the server with Node.js inspector enabled on port 9229.
 
 The server will start on `http://localhost:3000` (or the port specified in your environment variables).
 
+### Docker Compose
+
+The Compose setup mounts the local `./data` directory into the container at `/app/data`. It also mounts
+`../dphe-db-pipeline` at `/dphe-db-pipeline` so sibling database paths can work from `.env`.
+
+Set the container database path in `.env`:
+
+```bash
+DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3
+PORT=3333
+```
+
+Then build and run the API:
+
+```bash
+docker compose up --build
+```
+
+By default, the Docker container listens on port `3333`. To expose it on a different Docker port, set `PORT` before running
+Compose, for example:
+
+```bash
+PORT=4444 docker compose up --build
+```
+
+See `DOCKER.md` for more Docker examples.
+
 ## 📚 API Documentation
 
 Once the server is running, access the interactive Swagger documentation at:
 
 ```
-http://localhost:3000/api-docs
+http://localhost:3000/docs
 ```
 
 ## 🔌 API Endpoints
