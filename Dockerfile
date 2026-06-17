@@ -15,7 +15,7 @@ FROM node:20-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     PORT=3333 \
-    DB_PATH=./data/deepphe/deepphe_sqlite_compressed
+    DB_PATH=./test/resources/deepphe.sqlite3
 
 WORKDIR /app
 
@@ -23,9 +23,9 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package*.json ./
 COPY server.js ./
 COPY src ./src
+COPY test/resources ./test/resources
 
-RUN mkdir -p /app/data \
-    && chown -R node:node /app
+RUN chown -R node:node /app
 
 USER node
 

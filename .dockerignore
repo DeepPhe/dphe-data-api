@@ -24,7 +24,9 @@ logs
 .idea
 .vscode
 
-/test
+/test/*
+!/test/resources
+!/test/resources/deepphe.sqlite3
 /docs
 /tmp
 /temp

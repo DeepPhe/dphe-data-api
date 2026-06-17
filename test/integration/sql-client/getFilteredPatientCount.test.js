@@ -1,6 +1,11 @@
 require("dotenv").config();
 const axios = require("axios");
-const BASE = process.env.API_BASE_URL || "http://localhost:3000/v1/deepphe-api";
+const app = require("../../../src/app");
+const { closeDatabase } = require("../../../src/db");
+
+let server;
+let baseUrl;
+
 // Give network + bitmap ops plenty of room
 jest.setTimeout(30000);
 /**
@@ -32,11 +37,17 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   let cancerValues = [];
   let conceptClass = null;
   let conceptValues = [];
+
   beforeAll(async () => {
+    await new Promise((resolve) => {
+      server = app.listen(0, "127.0.0.1", resolve);
+    });
+    baseUrl = `http://127.0.0.1:${server.address().port}/v1/deepphe-api`;
+
     /* ── OMOP RACE ──────────────────────────────────────────────── */
     try {
       const { data: raceRows } = await axios.get(
-        `${BASE}/omop/instances?attribute=RACE`
+        `${baseUrl}/omop/instances?attribute=RACE`
       );
       omopRaceValues = raceRows.map((r) => r.race).filter(Boolean);
       console.log(`RACE instances: ${omopRaceValues.join(", ")}`);
@@ -46,7 +57,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
     /* ── OMOP GENDER ────────────────────────────────────────────── */
     try {
       const { data: genderRows } = await axios.get(
-        `${BASE}/omop/instances?attribute=GENDER`
+        `${baseUrl}/omop/instances?attribute=GENDER`
       );
       omopGenderValues = genderRows.map((r) => r.gender).filter(Boolean);
       console.log(`GENDER instances: ${omopGenderValues.join(", ")}`);
@@ -56,12 +67,12 @@ describe("POST /deepphe/filter/count  (integration)", () => {
     /* ── Attributes ─────────────────────────────────────────────── */
     try {
       const { data: classes } = await axios.get(
-        `${BASE}/deepphe/attributes/classes`
+        `${baseUrl}/deepphe/attributes/classes`
       );
       if (classes.length > 0) {
         attrClass = classes[0];
         const { data: rows } = await axios.get(
-          `${BASE}/deepphe/attributes/instances?groupname=${encodeURIComponent(attrClass)}`
+          `${baseUrl}/deepphe/attributes/instances?groupname=${encodeURIComponent(attrClass)}`
         );
         attrValues = rows.map((r) => r.value).filter(Boolean);
         console.log(`Attribute "${attrClass}": ${attrValues.slice(0, 5).join(", ")}...`);
@@ -72,12 +83,12 @@ describe("POST /deepphe/filter/count  (integration)", () => {
     /* ── Cancers ────────────────────────────────────────────────── */
     try {
       const { data: classes } = await axios.get(
-        `${BASE}/deepphe/cancers/classes`
+        `${baseUrl}/deepphe/cancers/classes`
       );
       if (classes.length > 0) {
         cancerClass = classes[0];
         const { data: rows } = await axios.get(
-          `${BASE}/deepphe/cancers/instances?classUri=${encodeURIComponent(cancerClass)}`
+          `${baseUrl}/deepphe/cancers/instances?classUri=${encodeURIComponent(cancerClass)}`
         );
         cancerValues = rows.map((r) => r.value).filter(Boolean);
         console.log(`Cancer "${cancerClass}": ${cancerValues.slice(0, 5).join(", ")}...`);
@@ -88,12 +99,12 @@ describe("POST /deepphe/filter/count  (integration)", () => {
     /* ── Concepts ───────────────────────────────────────────────── */
     try {
       const { data: classes } = await axios.get(
-        `${BASE}/deepphe/concepts/classes`
+        `${baseUrl}/deepphe/concepts/classes`
       );
       if (classes.length > 0) {
         conceptClass = classes[0];
         const { data: rows } = await axios.get(
-          `${BASE}/deepphe/concepts/instances?dpheGroup=${encodeURIComponent(conceptClass)}`
+          `${baseUrl}/deepphe/concepts/instances?dpheGroup=${encodeURIComponent(conceptClass)}`
         );
         conceptValues = rows.map((r) => r.value).filter(Boolean);
         console.log(`Concept "${conceptClass}": ${conceptValues.slice(0, 5).join(", ")}...`);
@@ -102,12 +113,25 @@ describe("POST /deepphe/filter/count  (integration)", () => {
       console.warn("Could not fetch concept data:", e.message);
     }
   });
+
+  afterAll(async () => {
+    await new Promise((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+    await closeDatabase();
+  });
   /* ────────────────────────────────────────────────────────────── */
   /*  Functional tests                                             */
   /* ────────────────────────────────────────────────────────────── */
   test("single OMOP RACE filter returns count + timing", async () => {
     if (omopRaceValues.length === 0) return;
-    const { data } = await axios.post(`${BASE}/deepphe/filter/count`, {
+    const { data } = await axios.post(`${baseUrl}/deepphe/filter/count`, {
       filters: [
         { type: "omop", class: "RACE", instances: omopRaceValues.slice(0, 2) },
       ],
@@ -125,7 +149,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   test("single filter with includePatientIds=true", async () => {
     if (omopGenderValues.length === 0) return;
     const { data } = await axios.post(
-      `${BASE}/deepphe/filter/count?includePatientIds=true`,
+      `${baseUrl}/deepphe/filter/count?includePatientIds=true`,
       {
         filters: [
           { type: "omop", class: "GENDER", instances: omopGenderValues.slice(0, 1) },
@@ -152,7 +176,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
       console.log("Skipping 5-filter test — not enough data");
       return;
     }
-    const { data } = await axios.post(`${BASE}/deepphe/filter/count`, { filters });
+    const { data } = await axios.post(`${baseUrl}/deepphe/filter/count`, { filters });
     logTiming(`${filters.length}-filter mixed-type (HTTP)`, data.timing);
     expect(data.count).toBeGreaterThanOrEqual(0);
     expect(data.timing.itemCounts.length).toBe(filters.length);
@@ -180,7 +204,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
     for (let i = 0; i < 50; i++) {
       filters.push(pool[i % pool.length]);
     }
-    const { data } = await axios.post(`${BASE}/deepphe/filter/count`, { filters });
+    const { data } = await axios.post(`${baseUrl}/deepphe/filter/count`, { filters });
     logTiming("50-filter stress test (HTTP)", data.timing);
     expect(data.count).toBeGreaterThanOrEqual(0);
     expect(data.timing.totalMs).toBeLessThan(2000);
@@ -190,7 +214,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   /* ────────────────────────────────────────────────────────────── */
   test("empty filters array returns 400", async () => {
     try {
-      await axios.post(`${BASE}/deepphe/filter/count`, { filters: [] });
+      await axios.post(`${baseUrl}/deepphe/filter/count`, { filters: [] });
       throw new Error("Should have returned 400");
     } catch (e) {
       expect(e.response.status).toBe(400);
@@ -198,7 +222,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   });
   test("missing filters field returns 400", async () => {
     try {
-      await axios.post(`${BASE}/deepphe/filter/count`, {});
+      await axios.post(`${baseUrl}/deepphe/filter/count`, {});
       throw new Error("Should have returned 400");
     } catch (e) {
       expect(e.response.status).toBe(400);
@@ -206,7 +230,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   });
   test("invalid type in filter returns 400", async () => {
     try {
-      await axios.post(`${BASE}/deepphe/filter/count`, {
+      await axios.post(`${baseUrl}/deepphe/filter/count`, {
         filters: [{ type: "bogus", class: "X", instances: ["Y"] }],
       });
       throw new Error("Should have returned an error");
@@ -216,7 +240,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   });
   test("filter missing instances returns 400", async () => {
     try {
-      await axios.post(`${BASE}/deepphe/filter/count`, {
+      await axios.post(`${baseUrl}/deepphe/filter/count`, {
         filters: [{ type: "omop", class: "RACE" }],
       });
       throw new Error("Should have returned 400");
@@ -230,7 +254,7 @@ describe("POST /deepphe/filter/count  (integration)", () => {
   test("autoIncludeThreshold=0 disables auto-include of patient_ids", async () => {
     if (omopRaceValues.length === 0) return;
     const { data } = await axios.post(
-      `${BASE}/deepphe/filter/count?autoIncludeThreshold=0`,
+      `${baseUrl}/deepphe/filter/count?autoIncludeThreshold=0`,
       {
         filters: [
           { type: "omop", class: "RACE", instances: omopRaceValues.slice(0, 2) },

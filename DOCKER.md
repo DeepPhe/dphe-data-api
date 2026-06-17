@@ -5,40 +5,30 @@ This project runs as a single Docker Compose service named `dphe-data-api`.
 ## Files
 
 - `Dockerfile` builds the Node.js API image.
-- `docker-compose.yml` defines the Compose service, port mapping, and local data mount.
+- `docker-compose.yml` defines the Compose service and port mapping.
 - `.env` sets local Compose overrides such as `DB_PATH` and `PORT`.
 - `docker-compose.env` is an optional tracked env file you can pass with `--env-file`.
 
 ## Database Path Rules
 
-Compose mounts:
-
-- `./data` into the container at `/app/data`.
-- `../dphe-db-pipeline` into the container at `/dphe-db-pipeline`.
-
-Because the API runs inside the container, `DB_PATH` must be a container path, not a macOS/Linux host path. These are both valid for the default mount:
+The Docker image includes the local test fixture at `/app/test/resources/deepphe.sqlite3`.
+Because the API runs inside the container, `DB_PATH` must be a container path, not a macOS/Linux host path. These are both valid for the bundled fixture:
 
 ```bash
-DB_PATH=./data/deepphe/deepphe_sqlite_compressed
-DB_PATH=/app/data/deepphe/deepphe_sqlite_compressed
+DB_PATH=./test/resources/deepphe.sqlite3
+DB_PATH=/app/test/resources/deepphe.sqlite3
 ```
 
-This sibling-repository path also works because Compose mounts `../dphe-db-pipeline` at `/dphe-db-pipeline`, and the app resolves relative paths from `/app`:
-
-```bash
-DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3
-```
-
-The SQLite client opens the database read/write, so the mounted directory must be writable.
+The SQLite client opens the database read/write, so any externally mounted database directory must be writable.
 
 ## `.env` Overrides Defaults
 
 Compose automatically reads `.env` and uses those values to fill `docker-compose.yml`. Values in `.env` override the Docker defaults in Compose.
 
-For your sibling pipeline database, put this in `.env`:
+To run with the bundled test fixture, put this in `.env`:
 
 ```bash
-DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3
+DB_PATH=./test/resources/deepphe.sqlite3
 PORT=3333
 ```
 
@@ -77,7 +67,7 @@ docker compose down
 Create another env file, for example `docker-compose.local-db.env`:
 
 ```bash
-DB_PATH=/app/data/deepphe/my_local_database
+DB_PATH=/app/db/my_local_database.sqlite3
 PORT=3333
 ```
 
@@ -96,7 +86,7 @@ Using `--env-file` replaces Compose's automatic `.env` file for that run. If you
 For `docker compose up`, prefix the command with env vars:
 
 ```bash
-DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3 PORT=3333 docker compose up --build
+DB_PATH=./test/resources/deepphe.sqlite3 PORT=3333 docker compose up --build
 ```
 
 `docker compose up` does not support a per-service `-e DB_PATH=...` flag. If you specifically want `-e`, use `docker compose run` with `--service-ports`:
@@ -104,7 +94,7 @@ DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3 PORT=3333 docker compose up --b
 ```bash
 docker compose build
 docker compose run --rm --service-ports \
-  -e DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3 \
+  -e DB_PATH=./test/resources/deepphe.sqlite3 \
   dphe-data-api
 ```
 
@@ -116,13 +106,13 @@ docker compose down
 
 ## Use A Database Outside This Repository
 
-The default Compose file mounts `./data` and `../dphe-db-pipeline`. If your database lives somewhere else, mount its directory when using `docker compose run`:
+If your database lives outside this repository, mount its directory when using `docker compose run`:
 
 ```bash
 docker compose build
 docker compose run --rm --service-ports \
-  -v /absolute/host/db-dir:/app/data:rw \
-  -e DB_PATH=/app/data/deepphe_sqlite_compressed \
+  -v /absolute/host/db-dir:/app/db:rw \
+  -e DB_PATH=/app/db/deepphe.sqlite3 \
   dphe-data-api
 ```
 

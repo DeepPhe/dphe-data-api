@@ -180,6 +180,7 @@ out/
 *.sqlite
 *.sqlite3
 *.db
+!test/resources/deepphe.sqlite3
 
 # Backups
 *.bak

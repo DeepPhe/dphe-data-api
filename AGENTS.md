@@ -44,7 +44,6 @@ src/
     omop-controller.js
     patient-concept-controller.js
     patient-document-controller.js
-    patient-filter-controller.js
     summary-controller.js
   db/
     index.js               # Re-exports active client
@@ -119,8 +118,8 @@ When reading or writing the `files` key-value table, use the established key con
 | Variable          | Purpose                                  | Default                                |
 |-------------------|------------------------------------------|----------------------------------------|
 | `PORT`            | HTTP listen port                         | `3000`                                 |
-| `DB_PATH`         | Path to the SQLite database file         | `./data/deepphe/deepphe_sqlite_compressed` |
-| `TEST_PATIENT_ID` | Patient ID used in tests (keep private!) | —                                      |
+| `DB_PATH`         | Path to the SQLite database file         | `./test/resources/deepphe.sqlite3` |
+| `TEST_PATIENT_ID` | Patient ID used in tests                 | `fake_patient1` in the bundled fixture |
 
 Never hard-code `DB_PATH` or patient identifiers. Always read from environment or `src/config/database.js`.
 
@@ -134,8 +133,8 @@ npm run test:watch       # watch mode
 npm run test:coverage    # with coverage report
 ```
 
-- Unit tests live in `test/unit/`. They must **mock** the SQLiteClient singleton — do not open a real database.
-- Integration tests live in `test/integration/`. They require a valid `DB_PATH` and `TEST_PATIENT_ID` set in `.env`.
+- Unit tests live in `test/unit/`. Prefer mocking the SQLiteClient singleton; DB-dependent coverage should use the bundled fixture via `test/helpers/test-env.js`.
+- Integration tests live in `test/integration/`. Jest config points them at `test/resources/deepphe.sqlite3` by default.
 - Never commit `.env` or any file containing real patient IDs.
 - Test file naming: `<module>.test.js` co-located or mirrored under `test/`.
 
@@ -185,4 +184,3 @@ jest.mock('../../src/db/sqlite-client', () => ({
 | zstd decompression fails on old rows | Wrap decompression in try/catch and fall back to raw UTF-8 text (see `getPatientSummariesByPatientIds`). |
 | Sequential IDs exposed in response | Always resolve via `patientBitmapToPatientIds()` before returning data. |
 | ESM/CJS mismatch | Keep all new source files as `.js` (CommonJS). Only `schema.mjs` is ESM. |
-

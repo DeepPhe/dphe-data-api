@@ -34,8 +34,8 @@ cp .env.example .env
 
 ```bash
 PORT=3000
-DB_PATH=./data/deepphe/deepphe_db
-TEST_PATIENT_ID=your_test_patient_id_here
+DB_PATH=./test/resources/deepphe.sqlite3
+TEST_PATIENT_ID=fake_patient1
 ```
 
 ## 🗄️ Database Setup (SQLite3)
@@ -47,7 +47,7 @@ This project uses SQLite3 as an embedded database with a key-value store interfa
 The database path is configured in `src/config/database.js` and can be overridden with the `DB_PATH` environment
 variable.
 
-Default location: `./data/deepphe/deepphe_sqlite_compressed`
+Default location: `./test/resources/deepphe.sqlite3`
 
 ### Database Schema
 
@@ -90,13 +90,12 @@ The server will start on `http://localhost:3000` (or the port specified in your 
 
 ### Docker Compose
 
-The Compose setup mounts the local `./data` directory into the container at `/app/data`. It also mounts
-`../dphe-db-pipeline` at `/dphe-db-pipeline` so sibling database paths can work from `.env`.
+The Docker image includes the local test fixture at `/app/test/resources/deepphe.sqlite3`.
 
 Set the container database path in `.env`:
 
 ```bash
-DB_PATH=../dphe-db-pipeline/deepphe_test.sqlite3
+DB_PATH=./test/resources/deepphe.sqlite3
 PORT=3333
 ```
 
@@ -251,14 +250,14 @@ npm test -- src/db/sqlite-client.test.js
 
 - `PORT` - Server port (default: 3000)
 - `DB_PATH` - Path to SQLite database file
-- `TEST_PATIENT_ID` - Patient ID used in tests (keep private)
+- `TEST_PATIENT_ID` - Patient ID used in tests; the bundled fixture uses fake IDs
 
 ### Database Path
 
 The database path is centralized in `src/config/database.js`:
 
 ```javascript
-const DB_PATH = process.env.DB_PATH || './data/deepphe/deepphe_db';
+const DB_PATH = process.env.DB_PATH || './test/resources/deepphe.sqlite3';
 ```
 
 To change the database location:

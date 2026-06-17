@@ -1,5 +1,6 @@
 module.exports = {
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/test/helpers/test-env.js'],
   coverageDirectory: 'coverage',
   collectCoverageFrom: [
     'src/**/*.js',
@@ -14,4 +15,3 @@ module.exports = {
   verbose: true,
   testTimeout: 10000
 };
-

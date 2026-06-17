@@ -168,7 +168,7 @@ exports.getBatchFilteredPatientCount = async (req, res) => {
  *
  * @param {Object} req - Express request object
  * @param {Object} req.body - Request body
- * @param {Array<string|number>} req.body.patientIds - Patient IDs to fetch
+ * @param {Array<string|number>} req.body.patient_ids - Patient IDs to fetch
  * @param {Object} res - Express response object
  * @returns {Promise<void>}
  */

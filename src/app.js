@@ -10,7 +10,9 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(morgan("dev"));
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan("dev"));
+}
 
 // Swagger docs - auto-generated from JSDoc comments
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

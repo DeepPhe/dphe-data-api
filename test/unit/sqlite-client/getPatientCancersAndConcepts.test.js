@@ -4,7 +4,7 @@ describe('SQLiteClient.getPatientCancers / getPatientConcepts', () => {
     let client;
 
     beforeEach(() => {
-        client = new SQLiteClient('./data/deepphe/deepphe_sqlite_compressed');
+        client = new SQLiteClient('./test/resources/deepphe.sqlite3');
         // Inject a minimal mock db with get stub
         client.isOpen = true;
     });

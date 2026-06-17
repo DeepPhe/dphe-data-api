@@ -4,10 +4,10 @@
 
 const path = require('path');
 
-// Database path constant
-const DB_PATH = process.env.DB_PATH || './data/deepphe/deepphe_sqlite_compressed';
+const DEFAULT_DB_PATH = path.resolve(__dirname, '../../test/resources/deepphe.sqlite3');
+const configuredDbPath = process.env.DB_PATH || DEFAULT_DB_PATH;
 
 module.exports = {
-  DB_PATH: path.resolve(DB_PATH)
+  DEFAULT_DB_PATH,
+  DB_PATH: path.resolve(configuredDbPath)
 };
-

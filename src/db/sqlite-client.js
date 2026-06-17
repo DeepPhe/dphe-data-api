@@ -3,6 +3,15 @@ const path = require('path');
 const fs = require('fs');
 const zstd = require('@mongodb-js/zstd');
 const roaring = require('roaring');
+const { DB_PATH } = require('../config/database');
+
+const OMOP_CLASS_CONFIG = Object.freeze({
+    AGE_AT_DX: { table: 'omop_age_at_dx', valueColumn: 'age_at_dx' },
+    ETHNICITY: { table: 'omop_ethnicity', valueColumn: 'ethnicity' },
+    GENDER: { table: 'omop_gender', valueColumn: 'gender' },
+    RACE: { table: 'omop_race', valueColumn: 'race' },
+    CANCER: { table: 'omop_cancers', valueColumn: 'cancer' }
+});
 
 function toObject(value) {
     return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -170,7 +179,7 @@ function isMissingSqliteTableError(error, tableName) {
  * Provides a simplified interface for interacting with SQLite3
  */
 class SQLiteClient {
-    constructor(dbPath = './data/deepphe/deepphe_sqlite_compressed') {
+    constructor(dbPath = DB_PATH) {
         this.dbPath = path.resolve(dbPath);
         this.db = null;
         this.isOpen = false;
@@ -199,7 +208,6 @@ class SQLiteClient {
                 }
 
                 this.isOpen = true;
-                console.log(`SQLite opened at: ${this.dbPath}`);
                 resolve();
             });
 
@@ -222,7 +230,6 @@ class SQLiteClient {
                     return reject(err);
                 }
                 this.isOpen = false;
-                console.log('SQLite closed');
                 resolve();
             });
         });
@@ -850,6 +857,85 @@ class SQLiteClient {
         });
     }
 
+    async getAllRows(sql, params = []) {
+        if (!this.isOpen) {
+            throw new Error('Database is not open');
+        }
+
+        return new Promise((resolve, reject) => {
+            this.db.all(sql, params, (error, rows) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                resolve(rows);
+            });
+        });
+    }
+
+    getPatientBitmapSource(row) {
+        let source;
+        let sourceType;
+
+        if (row.patient_bitmap !== null && row.patient_bitmap !== undefined) {
+            source = row.patient_bitmap;
+            sourceType = 'blob';
+        } else if (row.patientbitmap !== null && row.patientbitmap !== undefined) {
+            source = row.patientbitmap;
+            sourceType = 'base64';
+        } else {
+            return null;
+        }
+
+        if (sourceType === 'base64' && Buffer.isBuffer(source)) {
+            const text = source.toString('utf8');
+            if (/^[A-Za-z0-9+/=]+$/.test(text)) {
+                source = text;
+            } else {
+                sourceType = 'blob';
+            }
+        }
+
+        return { source, sourceType };
+    }
+
+    async processPatientBitmapRow(row, includePatientIds = false) {
+        const processedRow = { ...row };
+        const bitmapSource = this.getPatientBitmapSource(processedRow);
+
+        delete processedRow.patient_bitmap;
+        delete processedRow.patientbitmap;
+
+        if (includePatientIds && bitmapSource) {
+            processedRow.patient_ids = await this.patientBitmapToPatientIds(
+                bitmapSource.source,
+                bitmapSource.sourceType
+            );
+        }
+
+        return processedRow;
+    }
+
+    async processPatientBitmapRows(rows, includePatientIds = false) {
+        return Promise.all(
+            rows.map((row) => this.processPatientBitmapRow(row, includePatientIds))
+        );
+    }
+
+    async getProcessedBitmapRows(sql, params, includePatientIds, missingTableName) {
+        let rows;
+        try {
+            rows = await this.getAllRows(sql, params);
+        } catch (error) {
+            if (missingTableName && isMissingSqliteTableError(error, missingTableName)) {
+                return [];
+            }
+            throw error;
+        }
+
+        return this.processPatientBitmapRows(rows, includePatientIds);
+    }
+
     /**
      * Filter rows to only those that contain a specific patient in their bitmap
      * @param {Array<Object>} rows - Rows containing patient bitmap fields
@@ -870,33 +956,22 @@ class SQLiteClient {
         const matchingRows = [];
 
         for (const row of rows) {
-            const processedRow = { ...row };
-
-            let bitmapSource = null;
-            let sourceType = null;
-
-            if (processedRow.patient_bitmap) {
-                bitmapSource = processedRow.patient_bitmap;
-                sourceType = 'blob';
-            } else if (processedRow.patientbitmap) {
-                bitmapSource = processedRow.patientbitmap;
-                sourceType = 'base64';
-            } else {
+            const bitmapSource = this.getPatientBitmapSource(row);
+            if (!bitmapSource) {
                 continue;
             }
 
-            const bitmap = await this.decodeBitmap(bitmapSource, sourceType);
+            const bitmap = await this.decodeBitmap(
+                bitmapSource.source,
+                bitmapSource.sourceType
+            );
             if (!bitmap.has(sequentialId)) {
                 continue;
             }
 
-            if (includePatientIds) {
-                processedRow.patient_ids = await this.patientBitmapToPatientIds(bitmapSource, sourceType);
-            }
-
-            delete processedRow.patient_bitmap;
-            delete processedRow.patientbitmap;
-            matchingRows.push(processedRow);
+            matchingRows.push(
+                await this.processPatientBitmapRow(row, includePatientIds)
+            );
         }
 
         return matchingRows;
@@ -911,28 +986,8 @@ class SQLiteClient {
      * @returns {Promise<Array<Object>>} Filtered rows
      */
     async getRowsForPatient(sql, params, patientId, includePatientIds = false) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(sql, params, async (err, rows) => {
-                if (err) {
-                    return reject(err);
-                }
-
-                try {
-                    const filteredRows = await this.filterRowsByPatientId(
-                        rows,
-                        patientId,
-                        includePatientIds
-                    );
-                    resolve(filteredRows);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-        });
+        const rows = await this.getAllRows(sql, params);
+        return this.filterRowsByPatientId(rows, patientId, includePatientIds);
     }
 
     /**
@@ -942,66 +997,11 @@ class SQLiteClient {
      * @returns {Promise<Array<Object>>} - Array of attribute instances for the specified group
      */
     async getAttributesInstances(groupname, includePatientIds = true) {
-        return new Promise(async (resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT * FROM attributes_by_group WHERE attribute_name = ? ORDER BY attribute_name',
-                [groupname],
-                async (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    try {
-                        // Process each row
-                        const processedRows = await Promise.all(rows.map(async (row) => {
-                            // Create a copy of the row to avoid modifying the original
-                            const processedRow = { ...row };
-
-                            if (includePatientIds) {
-                                // Check if the row has a patient_bitmap field
-                                if (processedRow.patient_bitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patient_bitmap, 
-                                        'blob'
-                                    );
-                                    // Delete the original patient_bitmap after conversion
-                                    delete processedRow.patient_bitmap;
-                                }
-                                // Check if the row has a patientbitmap field
-                                else if (processedRow.patientbitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patientbitmap, 
-                                        'base64'
-                                    );
-                                    // Delete the original patientbitmap after conversion
-                                    delete processedRow.patientbitmap;
-                                }
-                            } else {
-                                // If not including patient IDs, just remove the bitmap fields
-                                if (processedRow.patient_bitmap) {
-                                    delete processedRow.patient_bitmap;
-                                }
-                                if (processedRow.patientbitmap) {
-                                    delete processedRow.patientbitmap;
-                                }
-                            }
-
-                            return processedRow;
-                        }));
-
-                        resolve(processedRows);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
+        return this.getProcessedBitmapRows(
+            'SELECT * FROM attributes_by_group WHERE attribute_name = ? ORDER BY attribute_name',
+            [groupname],
+            includePatientIds
+        );
     }
 
     /**
@@ -1040,66 +1040,11 @@ class SQLiteClient {
      * @returns {Promise<Array<Object>>} - Array of cancer instances for the specified class
      */
     async getCancersInstances(classUri, includePatientIds = true) {
-        return new Promise(async (resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT * FROM cancers_by_group WHERE classUri = ? ORDER BY classUri',
-                [classUri],
-                async (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    try {
-                        // Process each row
-                        const processedRows = await Promise.all(rows.map(async (row) => {
-                            // Create a copy of the row to avoid modifying the original
-                            const processedRow = { ...row };
-
-                            if (includePatientIds) {
-                                // Check if the row has a patient_bitmap field
-                                if (processedRow.patient_bitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patient_bitmap, 
-                                        'blob'
-                                    );
-                                    // Delete the original patient_bitmap after conversion
-                                    delete processedRow.patient_bitmap;
-                                }
-                                // Check if the row has a patientbitmap field
-                                else if (processedRow.patientbitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patientbitmap, 
-                                        'base64'
-                                    );
-                                    // Delete the original patientbitmap after conversion
-                                    delete processedRow.patientbitmap;
-                                }
-                            } else {
-                                // If not including patient IDs, just remove the bitmap fields
-                                if (processedRow.patient_bitmap) {
-                                    delete processedRow.patient_bitmap;
-                                }
-                                if (processedRow.patientbitmap) {
-                                    delete processedRow.patientbitmap;
-                                }
-                            }
-
-                            return processedRow;
-                        }));
-
-                        resolve(processedRows);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
+        return this.getProcessedBitmapRows(
+            'SELECT * FROM cancers_by_group WHERE classUri = ? ORDER BY classUri',
+            [classUri],
+            includePatientIds
+        );
     }
 
     /**
@@ -1138,66 +1083,11 @@ class SQLiteClient {
      * @returns {Promise<Array<Object>>} - Array of concept instances for the specified class
      */
     async getConceptsInstances(dpheGroup, includePatientIds = true) {
-        return new Promise(async (resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT * FROM concepts_by_group WHERE dpheGroup = ? ORDER BY dpheGroup',
-                [dpheGroup],
-                async (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    try {
-                        // Process each row
-                        const processedRows = await Promise.all(rows.map(async (row) => {
-                            // Create a copy of the row to avoid modifying the original
-                            const processedRow = { ...row };
-
-                            if (includePatientIds) {
-                                // Check if the row has a patient_bitmap field
-                                if (processedRow.patient_bitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patient_bitmap, 
-                                        'blob'
-                                    );
-                                    // Delete the original patient_bitmap after conversion
-                                    delete processedRow.patient_bitmap;
-                                }
-                                // Check if the row has a patientbitmap field
-                                else if (processedRow.patientbitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patientbitmap, 
-                                        'base64'
-                                    );
-                                    // Delete the original patientbitmap after conversion
-                                    delete processedRow.patientbitmap;
-                                }
-                            } else {
-                                // If not including patient IDs, just remove the bitmap fields
-                                if (processedRow.patient_bitmap) {
-                                    delete processedRow.patient_bitmap;
-                                }
-                                if (processedRow.patientbitmap) {
-                                    delete processedRow.patientbitmap;
-                                }
-                            }
-
-                            return processedRow;
-                        }));
-
-                        resolve(processedRows);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
+        return this.getProcessedBitmapRows(
+            'SELECT * FROM concepts_by_group WHERE dpheGroup = ? ORDER BY dpheGroup',
+            [dpheGroup],
+            includePatientIds
+        );
     }
 
     /**
@@ -1236,83 +1126,18 @@ class SQLiteClient {
      * @returns {Promise<Array<Object>>} - Array of OMOP instances for the specified class
      */
     async getOmopInstances(omopClass, includePatientIds = true) {
-        return new Promise(async (resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
+        const className = String(omopClass || '').toUpperCase();
+        const config = OMOP_CLASS_CONFIG[className];
+        if (!config) {
+            throw new Error(`Invalid OMOP class: ${omopClass}`);
+        }
 
-            const className = String(omopClass || '').toUpperCase();
-            const omopClassConfig = {
-                AGE_AT_DX: { table: 'omop_age_at_dx', valueColumn: 'age_at_dx' },
-                ETHNICITY: { table: 'omop_ethnicity', valueColumn: 'ethnicity' },
-                GENDER: { table: 'omop_gender', valueColumn: 'gender' },
-                RACE: { table: 'omop_race', valueColumn: 'race' },
-                CANCER: { table: 'omop_cancers', valueColumn: 'cancer' }
-            };
-
-            const config = omopClassConfig[className];
-            if (!config) {
-                return reject(new Error(`Invalid OMOP class: ${omopClass}`));
-            }
-
-            this.db.all(
-                `SELECT * FROM ${config.table} ORDER BY ${config.valueColumn}`,
-                [],
-                async (err, rows) => {
-                    if (err) {
-                        if (isMissingSqliteTableError(err, config.table)) {
-                            return resolve([]);
-                        }
-                        return reject(err);
-                    }
-
-                    try {
-                        // Process each row
-                        const processedRows = await Promise.all(rows.map(async (row) => {
-                            // Create a copy of the row to avoid modifying the original
-                            const processedRow = { ...row };
-
-                            if (includePatientIds) {
-                                // Check if the row has a patient_bitmap field
-                                if (processedRow.patient_bitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patient_bitmap,
-                                        'blob'
-                                    );
-                                    // Delete the original patient_bitmap after conversion
-                                    delete processedRow.patient_bitmap;
-                                }
-                                // Check if the row has a patientbitmap field
-                                else if (processedRow.patientbitmap) {
-                                    // Convert the bitmap to patient IDs
-                                    processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                                        processedRow.patientbitmap,
-                                        'base64'
-                                    );
-                                    // Delete the original patientbitmap after conversion
-                                    delete processedRow.patientbitmap;
-                                }
-                            } else {
-                                // If not including patient IDs, just remove the bitmap fields
-                                if (processedRow.patient_bitmap) {
-                                    delete processedRow.patient_bitmap;
-                                }
-                                if (processedRow.patientbitmap) {
-                                    delete processedRow.patientbitmap;
-                                }
-                            }
-
-                            return processedRow;
-                        }));
-
-                        resolve(processedRows);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
+        return this.getProcessedBitmapRows(
+            `SELECT * FROM ${config.table} ORDER BY ${config.valueColumn}`,
+            [],
+            includePatientIds,
+            config.table
+        );
     }
 
     /**
@@ -1328,15 +1153,7 @@ class SQLiteClient {
         }
 
         const className = String(omopClass || '').toUpperCase();
-        const omopClassConfig = {
-            AGE_AT_DX: { table: 'omop_age_at_dx', valueColumn: 'age_at_dx' },
-            ETHNICITY: { table: 'omop_ethnicity', valueColumn: 'ethnicity' },
-            GENDER: { table: 'omop_gender', valueColumn: 'gender' },
-            RACE: { table: 'omop_race', valueColumn: 'race' },
-            CANCER: { table: 'omop_cancers', valueColumn: 'cancer' }
-        };
-
-        const config = omopClassConfig[className];
+        const config = OMOP_CLASS_CONFIG[className];
         if (!config) {
             throw new Error(`Invalid OMOP class: ${omopClass}`);
         }
@@ -1538,15 +1355,6 @@ class SQLiteClient {
             );
         };
 
-        /* ── table / column lookup maps ─────────────────────────────── */
-        const OMOP_CONFIG = {
-            AGE_AT_DX:  { table: 'omop_age_at_dx',  valueColumn: 'age_at_dx' },
-            ETHNICITY:  { table: 'omop_ethnicity',   valueColumn: 'ethnicity' },
-            GENDER:     { table: 'omop_gender',      valueColumn: 'gender' },
-            RACE:       { table: 'omop_race',        valueColumn: 'race' },
-            CANCER:     { table: 'omop_cancers',     valueColumn: 'cancer' }
-        };
-
         const attributeTableColumns = await getTableColumnNames('attributes_by_group');
         const attributeValueColumns = [];
         if (attributeTableColumns.has('classuri')) {
@@ -1589,7 +1397,7 @@ class SQLiteClient {
 
             if (type === 'omop') {
                 const className = String(filterClass || '').toUpperCase();
-                const cfg = OMOP_CONFIG[className];
+                const cfg = OMOP_CLASS_CONFIG[className];
                 if (!cfg) throw new Error(`Invalid OMOP class: ${filterClass}`);
                 const ph = instances.map(() => '?').join(',');
                 sql = `SELECT * FROM ${cfg.table} WHERE ${cfg.valueColumn} IN (${ph})`;
@@ -1744,107 +1552,66 @@ class SQLiteClient {
      * @returns {Promise<Array<string>>} - Array of patient IDs or "missing" for unmapped IDs
      */
     async patientBitmapToPatientIds(source, sourceType = 'file') {
-        return new Promise(async (resolve, reject) => {
-            try {
-                if (!this.isOpen) {
-                    return reject(new Error('Database is not open'));
-                }
+        if (!this.isOpen) {
+            throw new Error('Database is not open');
+        }
 
-                // Check if source is valid
-                if (source === null || source === undefined) {
-                    console.log('Warning: Bitmap source is null or undefined, returning empty array');
-                    return resolve([]);
-                }
+        if (source === null || source === undefined) {
+            return [];
+        }
 
-                const validSourceTypes = new Set(['file', 'buffer', 'base64', 'blob']);
-                if (!validSourceTypes.has(sourceType)) {
-                    return reject(new Error('Invalid sourceType. Must be "file", "buffer", or "base64"'));
-                }
+        const validSourceTypes = new Set(['file', 'buffer', 'base64', 'blob']);
+        if (!validSourceTypes.has(sourceType)) {
+            throw new Error('Invalid sourceType. Must be "file", "buffer", or "base64"');
+        }
 
-                // Auto-detect source type if it's a Buffer
-                let effectiveSourceType = sourceType;
-                let effectiveSource = source;
+        let effectiveSourceType = sourceType;
+        let effectiveSource = source;
 
-                // When SQLite returns a TEXT column, it can come back as a Buffer
-                // If it's a Buffer and sourceType is 'base64', we need to check if it's actually base64 text
-                if (Buffer.isBuffer(source) && sourceType === 'base64') {
-                    try {
-                        // Try to convert the Buffer to a string and see if it looks like base64
-                        const str = source.toString('utf-8');
-                        // If it's valid base64, it should only contain base64 characters
-                        const isBase64 = /^[A-Za-z0-9+/=]+$/.test(str);
-
-                        if (isBase64) {
-                            // It's a Buffer containing base64 text - convert to string and keep 'base64' sourceType
-                            effectiveSource = str;
-                        } else {
-                            // It's a Buffer containing binary data - treat as blob
-                            effectiveSourceType = 'blob';
-                        }
-                    } catch (e) {
-                        // If there's an error, treat it as a blob
-                        effectiveSourceType = 'blob';
-                    }
-                }
-
-                // For base64 type, ensure it's a string
-                if (effectiveSourceType === 'base64' && typeof effectiveSource !== 'string') {
-                    return resolve([]);
-                }
-
-                // Decode the bitmap and get sequential IDs
-                let sequentialIds;
-                try {
-                    // First decode the bitmap
-                    const bitmap = await this.decodeBitmap(effectiveSource, effectiveSourceType);
-
-                    // Get the sequential IDs from the bitmap
-                    sequentialIds = bitmap.toArray();
-
-                    if (sequentialIds.length === 0) {
-                        return resolve([]);
-                    }
-                } catch (bitmapError) {
-                    return reject(new Error(`Failed to decode bitmap: ${bitmapError.message}`));
-                }
-
-                // SQLite has a max variable limit for IN (?) queries.
-                // Use chunks so large bitmaps (for common demographics) do not fail.
-                const chunkSize = 900;
-                const idMapping = {};
-
-                for (let i = 0; i < sequentialIds.length; i += chunkSize) {
-                    const chunk = sequentialIds.slice(i, i + chunkSize);
-                    const placeholders = chunk.map(() => '?').join(',');
-
-                    const rows = await new Promise((resolveChunk, rejectChunk) => {
-                        this.db.all(
-                            `SELECT sequential_id, patient_id FROM patient_id_mapping WHERE sequential_id IN (${placeholders})`,
-                            chunk,
-                            (err, resultRows) => {
-                                if (err) {
-                                    return rejectChunk(err);
-                                }
-                                resolveChunk(resultRows);
-                            }
-                        );
-                    });
-
-                    rows.forEach((row) => {
-                        idMapping[row.sequential_id] = row.patient_id;
-                    });
-                }
-
-                // Map each sequential ID to its patient ID or "missing"
-                const result = sequentialIds.map(id =>
-                    idMapping[id] !== undefined ? idMapping[id] : "missing"
-                );
-
-                resolve(result);
-            } catch (error) {
-                reject(error);
+        if (Buffer.isBuffer(source) && sourceType === 'base64') {
+            const text = source.toString('utf8');
+            if (/^[A-Za-z0-9+/=]+$/.test(text)) {
+                effectiveSource = text;
+            } else {
+                effectiveSourceType = 'blob';
             }
-        });
+        }
+
+        if (effectiveSourceType === 'base64' && typeof effectiveSource !== 'string') {
+            return [];
+        }
+
+        let sequentialIds;
+        try {
+            const bitmap = await this.decodeBitmap(effectiveSource, effectiveSourceType);
+            sequentialIds = bitmap.toArray();
+        } catch (error) {
+            throw new Error(`Failed to decode bitmap: ${error.message}`);
+        }
+
+        if (sequentialIds.length === 0) {
+            return [];
+        }
+
+        const chunkSize = 900;
+        const idMapping = {};
+
+        for (let i = 0; i < sequentialIds.length; i += chunkSize) {
+            const chunk = sequentialIds.slice(i, i + chunkSize);
+            const placeholders = chunk.map(() => '?').join(',');
+            const rows = await this.getAllRows(
+                `SELECT sequential_id, patient_id FROM patient_id_mapping WHERE sequential_id IN (${placeholders})`,
+                chunk
+            );
+
+            rows.forEach((row) => {
+                idMapping[row.sequential_id] = row.patient_id;
+            });
+        }
+
+        return sequentialIds.map((id) =>
+            idMapping[id] !== undefined ? idMapping[id] : 'missing'
+        );
     }
 
     /**

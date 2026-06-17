@@ -81,7 +81,7 @@ const filterController = require("../controllers/filter-controller");
  *               properties:
  *                 count:
  *                   type: integer
- *                 patientIds:
+ *                 patient_ids:
  *                   type: array
  *                   items:
  *                     type: string
@@ -203,9 +203,9 @@ router.post("/count/batch", filterController.getBatchFilteredPatientCount);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [patientIds]
+ *             required: [patient_ids]
  *             properties:
- *               patientIds:
+ *               patient_ids:
  *                 type: array
  *                 minItems: 1
  *                 items:

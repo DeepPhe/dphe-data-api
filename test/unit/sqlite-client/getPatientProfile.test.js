@@ -6,7 +6,7 @@ describe('SQLiteClient.getPatientSummaryByPatientId', () => {
     let client;
 
     beforeEach(() => {
-        client = new SQLiteClient('./data/deepphe/deepphe_sqlite_compressed');
+        client = new SQLiteClient('./test/resources/deepphe.sqlite3');
         client.isOpen = true;
     });
 
@@ -72,7 +72,7 @@ describe('SQLiteClient.getPatientProfile', () => {
     let client;
 
     beforeEach(() => {
-        client = new SQLiteClient('./data/deepphe/deepphe_sqlite_compressed');
+        client = new SQLiteClient('./test/resources/deepphe.sqlite3');
         client.isOpen = true;
 
         client.get = jest.fn().mockResolvedValue(null);

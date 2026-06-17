@@ -1,3 +1,5 @@
+require("dotenv").config({ quiet: true });
+
 const MySQLClient = require("./mysql-client");
 
 /**

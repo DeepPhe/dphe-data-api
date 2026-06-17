@@ -1,6 +1,6 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
-process.env.DB_PATH = path.resolve(__dirname, '../../../data/deepphe/deepphe_sqlite_compressed');
+process.env.DB_PATH = path.resolve(__dirname, '../../../test/resources/deepphe.sqlite3');
 
 const { db } = require('../../../src/db/index');
 const { SQLiteClient } = require('../../../src/db/sqlite-client');

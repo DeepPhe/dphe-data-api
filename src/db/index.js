@@ -12,7 +12,6 @@ const db = getInstance(DB_PATH);
 async function initializeDatabase() {
   try {
     await db.open();
-    console.log("Database initialized successfully");
     return db;
   } catch (error) {
     console.error("Failed to initialize database:", error);
@@ -27,7 +26,6 @@ async function initializeDatabase() {
 async function closeDatabase() {
   try {
     await db.close();
-    console.log("Database closed successfully");
   } catch (error) {
     console.error("Failed to close database:", error);
     throw error;
