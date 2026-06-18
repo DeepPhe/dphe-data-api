@@ -1445,13 +1445,27 @@ class SQLiteClient {
 let instance = null;
 
 /**
- * Get the singleton instance of SQLite client
- * @param {string} dbPath - Optional database path
+ * Get the singleton instance of SQLite client.
+ *
+ * The path is resolved from the argument (defaulting to the configured
+ * DB_PATH) on first call and locked in for the life of the process, so the
+ * connection target can never depend on which module imported the client
+ * first. Re-requesting the singleton with a different resolved path is a
+ * programming error and throws rather than silently returning a client
+ * pointed at the wrong database.
+ *
+ * @param {string} [dbPath=DB_PATH] - Database path (used only on first call)
  * @returns {SQLiteClient}
  */
-function getInstance(dbPath) {
+function getInstance(dbPath = DB_PATH) {
+    const resolvedPath = path.resolve(dbPath);
     if (!instance) {
-        instance = new SQLiteClient(dbPath);
+        instance = new SQLiteClient(resolvedPath);
+    } else if (resolvedPath !== instance.dbPath) {
+        throw new Error(
+            `SQLite client already initialized with "${instance.dbPath}"; ` +
+            `refusing to re-initialize with "${resolvedPath}".`
+        );
     }
     return instance;
 }
