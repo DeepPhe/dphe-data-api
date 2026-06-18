@@ -3,13 +3,13 @@
 A RESTful API for managing and accessing patient health data, including cancer information, demographics, documents, and
 clinical concepts. Built with Express.js and SQLite3.
 
-## 🛠 Prerequisites
+## Prerequisites
 
 - Node.js (v18 or higher; the Docker image uses Node 20)
 - npm or yarn
 - SQLite3 (installed automatically with dependencies)
 
-## 📦 Installation
+## Installation
 
 1. Clone the repository:
 
@@ -38,7 +38,7 @@ DB_PATH=./test/resources/deepphe.sqlite3
 TEST_PATIENT_ID=fake_patient1
 ```
 
-## 🗄️ Database Setup (SQLite3)
+## Database Setup (SQLite3)
 
 This project uses SQLite3 as an embedded database with a key-value store interface for high-performance data storage.
 
@@ -64,7 +64,7 @@ The database uses a simple key-value structure with a `files` table:
 - Cancer Keys: `{patientId}_Cancers.json` (e.g., `123456789_Cancers.json`)
 - Concept Keys: `{patientId}_Concepts.json}` (e.g., `123456789_Concepts.json`)
 
-## 🚀 Usage
+## Usage
 
 ### Development Mode
 
@@ -114,7 +114,7 @@ PORT=4444 docker compose up --build
 
 See `DOCKER.md` for more Docker examples.
 
-## 📚 API Documentation
+## API Documentation
 
 Once the server is running, access the interactive Swagger documentation at:
 
@@ -122,7 +122,7 @@ Once the server is running, access the interactive Swagger documentation at:
 http://localhost:3000/docs
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Patient
 
@@ -177,7 +177,7 @@ http://localhost:3000/docs
   - Query Parameters:
     - `dpheGroup` (required) - The concept group dpheGroup to filter by
 
-## 📖 API Examples
+## API Examples
 
 ### Get Patient Documents (Text Excluded by Default)
 
@@ -215,7 +215,7 @@ curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?e
 curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100&excludeProperties=text,mentions"
 ```
 
-## 🧪 Testing
+## Testing
 
 Run the test suite:
 
@@ -233,7 +233,7 @@ npm run test:coverage
 npm test -- src/db/sqlite-client.test.js
 ```
 
-## 📜 Scripts
+## Scripts
 
 | Script                     | Description                                                     |
 |----------------------------|-----------------------------------------------------------------|
@@ -245,7 +245,7 @@ npm test -- src/db/sqlite-client.test.js
 | `npm run test:watch`       | Run tests in watch mode                                         |
 | `npm run test:coverage`    | Run tests with coverage report                                  |
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -266,9 +266,9 @@ To change the database location:
 1. Edit `src/config/database.js`, OR
 2. Set `DB_PATH` in your `.env` file
 
-## 🔐 Security Notes
+## Security Notes
 
-⚠️ **Important:** Never commit the `.env` file to version control. It may contain sensitive information such as
+**Important:** Never commit the `.env` file to version control. It may contain sensitive information such as
 patient IDs and database paths.
 
 The `.gitignore` file is configured to exclude:
@@ -280,7 +280,7 @@ The `.gitignore` file is configured to exclude:
 
 Only `.env.example` should be committed as a template.
 
-## 📞 Support
+## Support
 
 For issues and questions, please open an issue in the GitHub repository.
 
