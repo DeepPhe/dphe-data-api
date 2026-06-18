@@ -369,39 +369,6 @@ class SQLiteClient {
   }
 
   /**
-   * Backward-compatible alias for getAttributesClasses.
-   * @returns {Promise<Array<string>>}
-   */
-  async getAttributesByGroup() {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-    return this.getAttributesClasses();
-  }
-
-  /**
-   * Backward-compatible alias for getCancersClasses.
-   * @returns {Promise<Array<string>>}
-   */
-  async getCancersByGroup() {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-    return this.getCancersClasses();
-  }
-
-  /**
-   * Backward-compatible alias for getConceptsClasses.
-   * @returns {Promise<Array<string>>}
-   */
-  async getConceptsByGroup() {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-    return this.getConceptsClasses();
-  }
-
-  /**
    * Get supported OMOP classes
    * @returns {Promise<Array<string>>} - Array of OMOP class names
    */
@@ -575,19 +542,6 @@ class SQLiteClient {
   }
 
   /**
-   * Backward-compatible alias for getAttributesInstances.
-   * @param {string} groupname
-   * @param {boolean} includePatientIds
-   * @returns {Promise<Array<Object>>}
-   */
-  async getAttributesForGroup(groupname, includePatientIds = false) {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-    return this.getAttributesInstances(groupname, includePatientIds);
-  }
-
-  /**
    * Get attribute instances for a specific group that contain a specific patient
    * @param {string} groupname - The group name to filter by
    * @param {string} patientId - Patient ID to match
@@ -618,19 +572,6 @@ class SQLiteClient {
   }
 
   /**
-   * Backward-compatible alias for getCancersInstances.
-   * @param {string} classUri
-   * @param {boolean} includePatientIds
-   * @returns {Promise<Array<Object>>}
-   */
-  async getCancersForGroup(classUri, includePatientIds = false) {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-    return this.getCancersInstances(classUri, includePatientIds);
-  }
-
-  /**
    * Get cancer instances for a specific class that contain a specific patient
    * @param {string} classUri - The classUri to filter by
    * @param {string} patientId - Patient ID to match
@@ -658,19 +599,6 @@ class SQLiteClient {
       [dpheGroup],
       includePatientIds,
     );
-  }
-
-  /**
-   * Backward-compatible alias for getConceptsInstances.
-   * @param {string} dpheGroup
-   * @param {boolean} includePatientIds
-   * @returns {Promise<Array<Object>>}
-   */
-  async getConceptsForGroup(dpheGroup, includePatientIds = false) {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-    return this.getConceptsInstances(dpheGroup, includePatientIds);
   }
 
   /**
