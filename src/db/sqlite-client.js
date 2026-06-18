@@ -4,6 +4,12 @@ const fs = require('fs');
 const zstd = require('@mongodb-js/zstd');
 const roaring = require('roaring');
 const { DB_PATH } = require('../config/database');
+const { SQLiteBitmapService } = require('./sqlite-bitmap-service');
+const { SQLiteFileStore } = require('./sqlite-file-store');
+const {
+    all: sqliteAll,
+    get: sqliteGet
+} = require('./sqlite-operations');
 
 const OMOP_CLASS_CONFIG = Object.freeze({
     AGE_AT_DX: { table: 'omop_age_at_dx', valueColumn: 'age_at_dx' },
@@ -183,6 +189,8 @@ class SQLiteClient {
         this.dbPath = path.resolve(dbPath);
         this.db = null;
         this.isOpen = false;
+        this._bitmapService = new SQLiteBitmapService(this);
+        this._fileStore = new SQLiteFileStore(this);
     }
 
     /**
@@ -242,23 +250,7 @@ class SQLiteClient {
      * @returns {Promise<void>}
      */
     async put(key, value) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
-            this.db.run(
-                'INSERT OR REPLACE INTO files (filename, content, encoding) VALUES (?, ?, ?)',
-                [key, valueStr, 'raw'],
-                (err) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    resolve();
-                }
-            );
-        });
+        return this._fileStore.put(key, value);
     }
 
     /**
@@ -268,44 +260,7 @@ class SQLiteClient {
      * @returns {Promise<any>}
      */
     async get(key, parseJson = true) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.get('SELECT content, encoding FROM files WHERE filename = ?', [key], async (err, row) => {
-                if (err) {
-                    return reject(err);
-                }
-
-                if (!row) {
-                    return resolve(null);
-                }
-
-                let content = row.content;
-
-                // Decompress if encoding is zstd
-                if (row.encoding === 'zstd') {
-                    try {
-                        const decompressed = await zstd.decompress(Buffer.from(content));
-                        content = decompressed.toString('utf8');
-                    } catch (decompressErr) {
-                        console.error(`Failed to decompress ${key}:`, decompressErr);
-                        return reject(decompressErr);
-                    }
-                }
-
-                if (parseJson && content) {
-                    try {
-                        resolve(JSON.parse(content));
-                    } catch (e) {
-                        resolve(content);
-                    }
-                } else {
-                    resolve(content);
-                }
-            });
-        });
+        return this._fileStore.get(key, parseJson);
     }
 
     /**
@@ -314,18 +269,7 @@ class SQLiteClient {
      * @returns {Promise<void>}
      */
     async del(key) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.run('DELETE FROM files WHERE filename = ?', [key], (err) => {
-                if (err) {
-                    return reject(err);
-                }
-                resolve();
-            });
-        });
+        return this._fileStore.del(key);
     }
 
     /**
@@ -334,59 +278,7 @@ class SQLiteClient {
      * @returns {Promise<void>}
      */
     async batch(operations) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.serialize(() => {
-                this.db.run('BEGIN TRANSACTION');
-
-                let hasError = false;
-                let completed = 0;
-
-                operations.forEach((op) => {
-                    if (hasError) return;
-
-                    if (op.type === 'put') {
-                        const valueStr = typeof op.value === 'string' ? op.value : JSON.stringify(op.value);
-                        this.db.run(
-                            'INSERT OR REPLACE INTO files (filename, content, encoding) VALUES (?, ?, ?)',
-                            [op.key, valueStr, 'raw'],
-                            (err) => {
-                                if (err && !hasError) {
-                                    hasError = true;
-                                    this.db.run('ROLLBACK');
-                                    return reject(err);
-                                }
-                                completed++;
-                                if (completed === operations.length) {
-                                    this.db.run('COMMIT', (err) => {
-                                        if (err) return reject(err);
-                                        resolve();
-                                    });
-                                }
-                            }
-                        );
-                    } else if (op.type === 'del') {
-                        this.db.run('DELETE FROM files WHERE filename = ?', [op.key], (err) => {
-                            if (err && !hasError) {
-                                hasError = true;
-                                this.db.run('ROLLBACK');
-                                return reject(err);
-                            }
-                            completed++;
-                            if (completed === operations.length) {
-                                this.db.run('COMMIT', (err) => {
-                                    if (err) return reject(err);
-                                    resolve();
-                                });
-                            }
-                        });
-                    }
-                });
-            });
-        });
+        return this._fileStore.batch(operations);
     }
 
     /**
@@ -395,62 +287,7 @@ class SQLiteClient {
      * @returns {Promise<Array>}
      */
     async getByPrefix(prefix) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-            const normalizedPrefix = normalizeString(prefix);
-            if (!normalizedPrefix) {
-                return resolve([]);
-            }
-
-            // Numeric IDs can use a tight upper-bound range.
-            // Non-numeric IDs use lexical range with \uFFFF suffix.
-            const isNumericPrefix = /^\d+$/.test(normalizedPrefix);
-            const nextPrefix = isNumericPrefix
-                ? (BigInt(normalizedPrefix) + 1n).toString()
-                : `${normalizedPrefix}\uFFFF`;
-
-            this.db.all(
-                'SELECT filename, content, encoding FROM files WHERE filename >= ? and filename < ? ORDER BY filename',
-                [normalizedPrefix, nextPrefix],
-                async (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    try {
-                        const results = await Promise.all(rows.map(async row => {
-                            let content = row.content;
-
-                            // Decompress if encoding is zstd
-                            if (row.encoding === 'zstd') {
-                                try {
-                                    // Content is stored as Buffer, decompress it
-                                    const decompressed = await zstd.decompress(Buffer.from(content));
-                                    content = decompressed.toString('utf8');
-                                } catch (decompressErr) {
-                                    console.error(`Failed to decompress ${row.filename}:`, decompressErr);
-                                    throw decompressErr;
-                                }
-                            }
-
-                            // Parse JSON
-                            try {
-                                const parsedValue = JSON.parse(content);
-                                return { key: row.filename, value: parsedValue };
-                            } catch (e) {
-                                return { key: row.filename, value: content };
-                            }
-                        }));
-
-                        resolve(results);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
+        return this._fileStore.getByPrefix(prefix);
     }
 
     /**
@@ -459,50 +296,7 @@ class SQLiteClient {
      * @returns {Promise<Array>}
      */
     async getAll(limit = 1000) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT filename, content, encoding FROM files ORDER BY filename LIMIT ?',
-                [limit],
-                async (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    try {
-                        const results = await Promise.all(rows.map(async row => {
-                            let content = row.content;
-
-                            // Decompress if encoding is zstd
-                            if (row.encoding === 'zstd') {
-                                try {
-                                    const decompressed = await zstd.decompress(Buffer.from(content));
-                                    content = decompressed.toString('utf8');
-                                } catch (decompressErr) {
-                                    console.error(`Failed to decompress ${row.filename}:`, decompressErr);
-                                    throw decompressErr;
-                                }
-                            }
-
-                            // Parse JSON
-                            try {
-                                const parsedValue = JSON.parse(content);
-                                return { key: row.filename, value: parsedValue };
-                            } catch (e) {
-                                return { key: row.filename, value: content };
-                            }
-                        }));
-
-                        resolve(results);
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
-            );
-        });
+        return this._fileStore.getAll(limit);
     }
 
     /**
@@ -512,9 +306,8 @@ class SQLiteClient {
      */
     async exists(key) {
         try {
-            const value = await this.get(key);
-            return value !== null;
-        } catch (err) {
+            return (await this.get(key)) !== null;
+        } catch (_) {
             return false;
         }
     }
@@ -524,18 +317,7 @@ class SQLiteClient {
      * @returns {Promise<void>}
      */
     async clear() {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.run('DELETE FROM files', (err) => {
-                if (err) {
-                    return reject(err);
-                }
-                resolve();
-            });
-        });
+        return this._fileStore.clear();
     }
 
     /**
@@ -545,64 +327,7 @@ class SQLiteClient {
      * @returns {Promise<any>} - The decoded bitmap
      */
     async decodeBitmap(source, sourceType = 'file') {
-        return new Promise((resolve, reject) => {
-            try {
-                let buffer;
-
-                // Get buffer based on source type
-                if (sourceType === 'file') {
-                    // Read from file
-                    if (typeof source !== 'string') {
-                        return reject(new Error('File path must be a string'));
-                    }
-                    buffer = fs.readFileSync(source);
-                } else if (sourceType === 'base64') {
-                    // Convert base64 to buffer
-                    if (typeof source !== 'string') {
-                        return reject(new Error('Base64 data must be a string'));
-                    }
-                    buffer = Buffer.from(source, 'base64');
-                } else if (sourceType === 'buffer') {
-                    // Use buffer directly
-                    if (!Buffer.isBuffer(source)) {
-                        return reject(new Error('Source must be a Buffer when sourceType is "buffer"'));
-                    }
-                    buffer = source;
-                } else if (sourceType === 'blob') {
-                    // Use blob directly as buffer
-                    if (!Buffer.isBuffer(source)) {
-                        // If it's not already a Buffer, try to convert it
-                        if (source instanceof Uint8Array) {
-                            buffer = Buffer.from(source);
-                        } else {
-                            return reject(new Error('Blob source must be a Buffer or Uint8Array'));
-                        }
-                    } else {
-                        buffer = source;
-                    }
-                } else {
-                    return reject(new Error('Invalid sourceType. Must be "file", "buffer", "base64", or "blob"'));
-                }
-
-                // Deserialize the bitmap with portable format (required for pyroaring compatibility)
-                try {
-                    // Try with portable format (false)
-                    const bitmap = roaring.RoaringBitmap32.deserialize(buffer, false);
-                    return resolve(bitmap);
-                } catch (e) {
-                    // If that fails, try with non-portable format (true)
-                    try {
-                        const bitmap = roaring.RoaringBitmap32.deserialize(buffer, true);
-                        return resolve(bitmap);
-                    } catch (e2) {
-                        // If both fail, reject with the original error
-                        return reject(e);
-                    }
-                }
-            } catch (error) {
-                reject(error);
-            }
-        });
+        return this._bitmapService.decodeBitmap(source, sourceType);
     }
 
     /**
@@ -610,25 +335,11 @@ class SQLiteClient {
      * @returns {Promise<Array<string>>} - Array of unique attribute names
      */
     async getAttributes() {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT DISTINCT attribute_name FROM attributes_by_group ORDER BY attribute_name',
-                [],
-                (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    // Extract attribute_name values from the rows
-                    const attributeNames = rows.map(row => row.attribute_name);
-                    resolve(attributeNames);
-                }
-            );
-        });
+        const rows = await sqliteAll(
+            this,
+            'SELECT DISTINCT attribute_name FROM attributes_by_group ORDER BY attribute_name'
+        );
+        return rows.map((row) => row.attribute_name);
     }
 
     /**
@@ -636,25 +347,7 @@ class SQLiteClient {
      * @returns {Promise<Array<string>>} - Array of unique attribute classes
      */
     async getAttributesClasses() {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT DISTINCT attribute_name FROM attributes_by_group ORDER BY attribute_name',
-                [],
-                (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    // Extract attribute_name values from the rows
-                    const attributeGroups = rows.map(row => row.attribute_name);
-                    resolve(attributeGroups);
-                }
-            );
-        });
+        return this.getAttributes();
     }
 
     /**
@@ -662,25 +355,11 @@ class SQLiteClient {
      * @returns {Promise<Array<string>>} - Array of unique cancer classes
      */
     async getCancersClasses() {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT DISTINCT classUri FROM cancers_by_group ORDER BY classUri',
-                [],
-                (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    // Extract classUri values from the rows
-                    const cancerGroups = rows.map(row => row.classUri);
-                    resolve(cancerGroups);
-                }
-            );
-        });
+        const rows = await sqliteAll(
+            this,
+            'SELECT DISTINCT classUri FROM cancers_by_group ORDER BY classUri'
+        );
+        return rows.map((row) => row.classUri);
     }
 
     /**
@@ -688,25 +367,11 @@ class SQLiteClient {
      * @returns {Promise<Array<string>>} - Array of unique concept classes
      */
     async getConceptsClasses() {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.all(
-                'SELECT DISTINCT dpheGroup FROM concepts_by_group ORDER BY dpheGroup',
-                [],
-                (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    // Extract dpheGroup values from the rows
-                    const conceptGroups = rows.map(row => row.dpheGroup);
-                    resolve(conceptGroups);
-                }
-            );
-        });
+        const rows = await sqliteAll(
+            this,
+            'SELECT DISTINCT dpheGroup FROM concepts_by_group ORDER BY dpheGroup'
+        );
+        return rows.map((row) => row.dpheGroup);
     }
 
     /**
@@ -839,87 +504,28 @@ class SQLiteClient {
      * @returns {Promise<number|null>} Sequential ID or null if not found
      */
     async getSequentialIdForPatient(patientId) {
-        return new Promise((resolve, reject) => {
-            if (!this.isOpen) {
-                return reject(new Error('Database is not open'));
-            }
-
-            this.db.get(
-                'SELECT sequential_id FROM patient_id_mapping WHERE patient_id = ? LIMIT 1',
-                [String(patientId)],
-                (err, row) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    resolve(row ? row.sequential_id : null);
-                }
-            );
-        });
+        const row = await sqliteGet(
+            this,
+            'SELECT sequential_id FROM patient_id_mapping WHERE patient_id = ? LIMIT 1',
+            [String(patientId)]
+        );
+        return row ? row.sequential_id : null;
     }
 
     async getAllRows(sql, params = []) {
-        if (!this.isOpen) {
-            throw new Error('Database is not open');
-        }
-
-        return new Promise((resolve, reject) => {
-            this.db.all(sql, params, (error, rows) => {
-                if (error) {
-                    reject(error);
-                    return;
-                }
-                resolve(rows);
-            });
-        });
+        return sqliteAll(this, sql, params);
     }
 
     getPatientBitmapSource(row) {
-        let source;
-        let sourceType;
-
-        if (row.patient_bitmap !== null && row.patient_bitmap !== undefined) {
-            source = row.patient_bitmap;
-            sourceType = 'blob';
-        } else if (row.patientbitmap !== null && row.patientbitmap !== undefined) {
-            source = row.patientbitmap;
-            sourceType = 'base64';
-        } else {
-            return null;
-        }
-
-        if (sourceType === 'base64' && Buffer.isBuffer(source)) {
-            const text = source.toString('utf8');
-            if (/^[A-Za-z0-9+/=]+$/.test(text)) {
-                source = text;
-            } else {
-                sourceType = 'blob';
-            }
-        }
-
-        return { source, sourceType };
+        return this._bitmapService.getPatientBitmapSource(row);
     }
 
     async processPatientBitmapRow(row, includePatientIds = false) {
-        const processedRow = { ...row };
-        const bitmapSource = this.getPatientBitmapSource(processedRow);
-
-        delete processedRow.patient_bitmap;
-        delete processedRow.patientbitmap;
-
-        if (includePatientIds && bitmapSource) {
-            processedRow.patient_ids = await this.patientBitmapToPatientIds(
-                bitmapSource.source,
-                bitmapSource.sourceType
-            );
-        }
-
-        return processedRow;
+        return this._bitmapService.processPatientBitmapRow(row, includePatientIds);
     }
 
     async processPatientBitmapRows(rows, includePatientIds = false) {
-        return Promise.all(
-            rows.map((row) => this.processPatientBitmapRow(row, includePatientIds))
-        );
+        return this._bitmapService.processPatientBitmapRows(rows, includePatientIds);
     }
 
     async getProcessedBitmapRows(sql, params, includePatientIds, missingTableName) {
@@ -944,37 +550,11 @@ class SQLiteClient {
      * @returns {Promise<Array<Object>>} Filtered rows for the patient
      */
     async filterRowsByPatientId(rows, patientId, includePatientIds = false) {
-        if (!this.isOpen) {
-            throw new Error('Database is not open');
-        }
-
-        const sequentialId = await this.getSequentialIdForPatient(patientId);
-        if (sequentialId === null || sequentialId === undefined) {
-            return [];
-        }
-
-        const matchingRows = [];
-
-        for (const row of rows) {
-            const bitmapSource = this.getPatientBitmapSource(row);
-            if (!bitmapSource) {
-                continue;
-            }
-
-            const bitmap = await this.decodeBitmap(
-                bitmapSource.source,
-                bitmapSource.sourceType
-            );
-            if (!bitmap.has(sequentialId)) {
-                continue;
-            }
-
-            matchingRows.push(
-                await this.processPatientBitmapRow(row, includePatientIds)
-            );
-        }
-
-        return matchingRows;
+        return this._bitmapService.filterRowsByPatientId(
+            rows,
+            patientId,
+            includePatientIds
+        );
     }
 
     /**
@@ -1203,18 +783,10 @@ class SQLiteClient {
         }
 
         // Detect which summary payload column exists in this database.
-        const tableInfo = await new Promise((resolve, reject) => {
-            this.db.all(
-                'PRAGMA table_info(patient_summaries)',
-                [],
-                (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    resolve(rows);
-                }
-            );
-        });
+        const tableInfo = await sqliteAll(
+            this,
+            'PRAGMA table_info(patient_summaries)'
+        );
 
         const columnNames = new Set(tableInfo.map(col => col.name));
         const jsonColumn = columnNames.has('json_text')
@@ -1245,14 +817,7 @@ class SQLiteClient {
                    OR pim.patient_id IN (${placeholders})
             `;
 
-            const rows = await new Promise((resolve, reject) => {
-                this.db.all(sql, [...chunk, ...chunk], (err, resultRows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    resolve(resultRows);
-                });
-            });
+            const rows = await sqliteAll(this, sql, [...chunk, ...chunk]);
 
             allRows.push(...rows);
         }
@@ -1341,15 +906,13 @@ class SQLiteClient {
         const totalStart = process.hrtime.bigint();
 
         const getTableColumnNames = async (tableName) => {
-            const pragmaRows = await new Promise((resolve, reject) => {
-                this.db.all(`PRAGMA table_info(${tableName})`, [], (err, rows) => {
-                    if (err) return reject(err);
-                    resolve(Array.isArray(rows) ? rows : []);
-                });
-            });
+            const pragmaRows = await sqliteAll(
+                this,
+                `PRAGMA table_info(${tableName})`
+            );
 
             return new Set(
-                pragmaRows
+                (Array.isArray(pragmaRows) ? pragmaRows : [])
                     .map((row) => normalizeString(row && row.name).toLowerCase())
                     .filter(Boolean)
             );
@@ -1437,12 +1000,7 @@ class SQLiteClient {
                 }
             }
 
-            const rows = await new Promise((resolve, reject) => {
-                this.db.all(sql, params, (err, results) => {
-                    if (err) return reject(err);
-                    resolve(results);
-                });
-            });
+            const rows = await sqliteAll(this, sql, params);
             filterRows.push(rows);
         }
 
@@ -1456,23 +1014,17 @@ class SQLiteClient {
         for (const rows of filterRows) {
             const bitmaps = [];
             for (const row of rows) {
-                let source = row.patient_bitmap || row.patientbitmap || null;
-                let srcType = row.patient_bitmap ? 'blob' : 'base64';
-
-                if (!source) continue;
-
-                // SQLite TEXT columns (patientbitmap / base64) may be returned
-                // as a Buffer by the sqlite3 driver.  decodeBitmap('base64')
-                // requires a plain string, so convert when necessary — same
-                // guard used in patientBitmapToPatientIds.
-                if (srcType === 'base64' && Buffer.isBuffer(source)) {
-                    const str = source.toString('utf-8');
-                    // If bytes look like binary (not valid base64 chars) treat as blob
-                    srcType = /^[A-Za-z0-9+/=]+$/.test(str) ? 'base64' : 'blob';
-                    source = srcType === 'base64' ? str : source;
+                const bitmapSource = this.getPatientBitmapSource(row);
+                if (!bitmapSource) {
+                    continue;
                 }
 
-                bitmaps.push(await this.decodeBitmap(source, srcType));
+                bitmaps.push(
+                    await this.decodeBitmap(
+                        bitmapSource.source,
+                        bitmapSource.sourceType
+                    )
+                );
             }
 
             // OR: patient in ANY selected instance for this filter item
@@ -1552,66 +1104,7 @@ class SQLiteClient {
      * @returns {Promise<Array<string>>} - Array of patient IDs or "missing" for unmapped IDs
      */
     async patientBitmapToPatientIds(source, sourceType = 'file') {
-        if (!this.isOpen) {
-            throw new Error('Database is not open');
-        }
-
-        if (source === null || source === undefined) {
-            return [];
-        }
-
-        const validSourceTypes = new Set(['file', 'buffer', 'base64', 'blob']);
-        if (!validSourceTypes.has(sourceType)) {
-            throw new Error('Invalid sourceType. Must be "file", "buffer", or "base64"');
-        }
-
-        let effectiveSourceType = sourceType;
-        let effectiveSource = source;
-
-        if (Buffer.isBuffer(source) && sourceType === 'base64') {
-            const text = source.toString('utf8');
-            if (/^[A-Za-z0-9+/=]+$/.test(text)) {
-                effectiveSource = text;
-            } else {
-                effectiveSourceType = 'blob';
-            }
-        }
-
-        if (effectiveSourceType === 'base64' && typeof effectiveSource !== 'string') {
-            return [];
-        }
-
-        let sequentialIds;
-        try {
-            const bitmap = await this.decodeBitmap(effectiveSource, effectiveSourceType);
-            sequentialIds = bitmap.toArray();
-        } catch (error) {
-            throw new Error(`Failed to decode bitmap: ${error.message}`);
-        }
-
-        if (sequentialIds.length === 0) {
-            return [];
-        }
-
-        const chunkSize = 900;
-        const idMapping = {};
-
-        for (let i = 0; i < sequentialIds.length; i += chunkSize) {
-            const chunk = sequentialIds.slice(i, i + chunkSize);
-            const placeholders = chunk.map(() => '?').join(',');
-            const rows = await this.getAllRows(
-                `SELECT sequential_id, patient_id FROM patient_id_mapping WHERE sequential_id IN (${placeholders})`,
-                chunk
-            );
-
-            rows.forEach((row) => {
-                idMapping[row.sequential_id] = row.patient_id;
-            });
-        }
-
-        return sequentialIds.map((id) =>
-            idMapping[id] !== undefined ? idMapping[id] : 'missing'
-        );
+        return this._bitmapService.patientBitmapToPatientIds(source, sourceType);
     }
 
     /**

@@ -32,6 +32,25 @@ describe('SQLiteClient.processPatientBitmapRow', () => {
         expect(result).toEqual({ id: 2, patient_ids: ['patient-1'] });
     });
 
+    test('detects base64 text and binary data returned as Buffers', () => {
+        expect(
+            client.getPatientBitmapSource({
+                patientbitmap: Buffer.from('AQID', 'utf8')
+            })
+        ).toEqual({
+            source: 'AQID',
+            sourceType: 'base64'
+        });
+
+        const binaryBitmap = Buffer.from([0, 255, 1]);
+        expect(
+            client.getPatientBitmapSource({ patientbitmap: binaryBitmap })
+        ).toEqual({
+            source: binaryBitmap,
+            sourceType: 'blob'
+        });
+    });
+
     test('removes both bitmap fields when patient IDs are not requested', async () => {
         const result = await client.processPatientBitmapRow(
             {

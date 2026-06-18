@@ -48,6 +48,9 @@ src/
   db/
     index.js               # Re-exports active client
     sqlite-client.js       # SQLiteClient class + singleton getInstance()
+    sqlite-operations.js   # Promisified sqlite3 run/get/all helpers
+    sqlite-file-store.js   # Compressed files table key-value operations
+    sqlite-bitmap-service.js # Bitmap decoding and patient ID mapping
     mysql-client.js        # Alternative MySQL client (rarely used)
   docs/
     swagger.js             # swagger-jsdoc spec assembly
