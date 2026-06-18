@@ -186,4 +186,5 @@ out/
 *.bak
 *.backup
 
-/.ai/md/
+# Local AI/agent scratch space (instructions, notes, one-off scripts)
+.ai/
