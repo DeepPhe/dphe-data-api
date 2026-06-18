@@ -66,10 +66,13 @@ async function fetchDocuments(patientId, documentIds = [], excludeProperties = [
 
     // Filter to only include document objects (keys ending in _Doc.json or patientId.json)
     // This excludes sub-resources and ensures we only get DocumentXn objects
-    const documentKeys = results.filter(({ key }) => {
-        // Match pattern: patientId.json or patientId_*_Doc.json
-        return key === `${prefix}.json` || key.match(new RegExp(`^${prefix}_.*_Doc\\.json$`));
-    });
+    // Match pattern: patientId.json or patientId_*_Doc.json. Use plain string
+    // matching rather than a RegExp built from the (user-supplied) patientId so
+    // regex metacharacters in the id can't alter which keys are selected.
+    const documentKeys = results.filter(({ key }) =>
+        key === `${prefix}.json` ||
+        (key.startsWith(`${prefix}_`) && key.endsWith('_Doc.json'))
+    );
 
     /** @type {DocumentXn[]} */
     let documents = documentKeys
