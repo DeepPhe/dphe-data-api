@@ -5,7 +5,7 @@ clinical concepts. Built with Express.js and SQLite3.
 
 ## 🛠 Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18 or higher; the Docker image uses Node 20)
 - npm or yarn
 - SQLite3 (installed automatically with dependencies)
 
@@ -81,10 +81,10 @@ npm start
 ### Debug Mode
 
 ```bash
-npm run start
+npm run start:debug
 ```
 
-This starts the server with Node.js inspector enabled on port 9229.
+This starts the server with the Node.js inspector enabled on port 9229.
 
 The server will start on `http://localhost:3000` (or the port specified in your environment variables).
 
@@ -237,7 +237,8 @@ npm test -- src/db/sqlite-client.test.js
 
 | Script                     | Description                                                     |
 |----------------------------|-----------------------------------------------------------------|
-| `npm start`                | Start the server with debugging enabled                         |
+| `npm start`                | Start the server                                                |
+| `npm run start:debug`      | Start the server with the Node.js inspector (port 9229)         |
 | `npm run dev`              | Start the server in development mode with auto-reload (nodemon) |
 | `npm run generate-schemas` | Generate TypeScript definitions from JSON schemas               |
 | `npm test`                 | Run all tests                                                   |
