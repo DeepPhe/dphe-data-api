@@ -267,8 +267,8 @@ To change the database location:
 
 ## 🔐 Security Notes
 
-⚠️ **Important:** Never commit the `.env` file to version control. It contains sensitive information like patient IDs,
-database paths, and MySQL credentials.
+⚠️ **Important:** Never commit the `.env` file to version control. It may contain sensitive information such as
+patient IDs and database paths.
 
 The `.gitignore` file is configured to exclude:
 

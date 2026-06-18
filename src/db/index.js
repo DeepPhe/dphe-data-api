@@ -1,6 +1,5 @@
 const { getInstance } = require("./sqlite-client");
 const { DB_PATH } = require("../config/database");
-const MySQLClient = require("./mysql-client");
 
 // Get the database instance
 const db = getInstance(DB_PATH);
@@ -36,5 +35,4 @@ module.exports = {
   db,
   initializeDatabase,
   closeDatabase,
-  MySQLClient,
 };
