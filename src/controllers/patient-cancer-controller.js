@@ -6,7 +6,6 @@ const { db } = require('../db');
  *
  * @param {Object} req
  * @param {Object} res
- * @returns {Promise<void>}
  */
 exports.getCancers = async (req, res) => {
   try {

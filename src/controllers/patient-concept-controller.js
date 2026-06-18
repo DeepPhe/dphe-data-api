@@ -4,9 +4,7 @@ const { db } = require('../db');
  * Get concepts for a patient
  * Returns an array of Concept objects
  *
- * @param {Object} req - Express request object
  * @param {string} req.query.patientId - Patient ID (required)
- * @param {Object} res - Express response object
  * @returns {Promise<Concept[]>} Array of Concept objects
  */
 exports.getConcepts = async (req, res) => {
@@ -39,9 +37,7 @@ exports.getConcepts = async (req, res) => {
  * Get concept relations for a patient
  * Returns an array of ConceptRelation objects
  *
- * @param {Object} req - Express request object
  * @param {string} req.query.patientId - Patient ID (required)
- * @param {Object} res - Express response object
  * @returns {Promise<ConceptRelation[]>} Array of ConceptRelation objects
  */
 exports.getConceptRelations = async (req, res) => {

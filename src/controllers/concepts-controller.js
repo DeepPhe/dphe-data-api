@@ -4,9 +4,7 @@ const { createGroupControllers } = require('./group-controller-factory');
 /**
  * Get the _Concepts.json file for a specific patient
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID (required)
- * @param {Object} res - Express response object
  * @returns {Promise<Object>} Parsed concepts JSON
  */
 exports.getPatientConceptsFile = async (req, res) => {

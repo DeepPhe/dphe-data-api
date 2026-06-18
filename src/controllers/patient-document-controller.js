@@ -137,11 +137,9 @@ async function fetchDocuments(patientId, documentIds = [], excludeProperties = [
  * Get all documents for a patient
  * Returns a collection of DocumentXn objects
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID from URL path (required)
  * @param {string} [req.query.documentIds] - Comma-separated list of document IDs to filter by
  * @param {string} [req.query.excludeProperties] - Comma-separated list of DocumentXn properties to exclude
- * @param {Object} res - Express response object
  * @returns {Promise<DocumentXn[]>} Array of DocumentXn objects
  */
 exports.getDocuments = async (req, res) => {
@@ -184,9 +182,7 @@ exports.getDocuments = async (req, res) => {
  * This endpoint always excludes the "text" field by default and does not support
  * documentIds/excludeProperties query filtering.
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID from URL path (required)
- * @param {Object} res - Express response object
  * @returns {Promise<DocumentXn[]>} Array of DocumentXn objects without text
  */
 exports.getPatient = async (req, res) => {
@@ -226,9 +222,7 @@ exports.getPatient = async (req, res) => {
 /**
  * Get a parsed patient summary payload
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID from URL path (required)
- * @param {Object} res - Express response object
  * @returns {Promise<Object>} Patient summary payload
  */
 exports.getPatientSummary = async (req, res) => {
@@ -258,9 +252,7 @@ exports.getPatientSummary = async (req, res) => {
 /**
  * Get a patient profile payload with demographics and summary details
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID from URL path (required)
- * @param {Object} res - Express response object
  * @returns {Promise<Object>} Patient profile payload
  */
 exports.getPatientProfile = async (req, res) => {
@@ -290,10 +282,8 @@ exports.getPatientProfile = async (req, res) => {
 /**
  * Get episode counts for all patient documents
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID from URL path (required)
  * @param {string} [req.query.documentIds] - Optional comma-separated list of document IDs to filter by
- * @param {Object} res - Express response object
  * @returns {Promise<Object>} Episode-to-count map (e.g., { unknown: 12, treatment: 6 })
  */
 exports.getDocumentEpisodeCounts = async (req, res) => {

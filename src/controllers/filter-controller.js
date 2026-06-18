@@ -33,10 +33,6 @@ function validateFilterItem(item, index) {
  *
  * Query params:
  *   ?includePatientIds=true  also returns the matching patient ID list
- *
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Promise<void>}
  */
 exports.getFilteredPatientCount = async (req, res) => {
   try {
@@ -91,10 +87,6 @@ const MAX_BATCH_SIZE = 500;
  *
  * All queries are executed concurrently.  A per-query error is captured and
  * returned inline (as `{ error }`) rather than failing the entire batch.
- *
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Promise<void>}
  */
 exports.getBatchFilteredPatientCount = async (req, res) => {
   try {
@@ -166,11 +158,8 @@ exports.getBatchFilteredPatientCount = async (req, res) => {
  * Accepts an array of patient IDs and returns a list of patient summaries.
  * The returned json_text is uncompressed UTF-8 text.
  *
- * @param {Object} req - Express request object
  * @param {Object} req.body - Request body
  * @param {Array<string|number>} req.body.patient_ids - Patient IDs to fetch
- * @param {Object} res - Express response object
- * @returns {Promise<void>}
  */
 exports.getPatientSummaries = async (req, res) => {
   try {

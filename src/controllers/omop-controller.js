@@ -15,8 +15,6 @@ function normalizeOmopClass(attribute) {
  * Shared handler for OMOP instances responses.
  * @param {string} attribute - OMOP class
  * @param {boolean} includePatientIds - Include patient IDs in response
- * @param {Object} res - Express response object
- * @returns {Promise<void>}
  */
 async function respondWithOmopInstances(attribute, includePatientIds, res) {
   const normalizedAttribute = normalizeOmopClass(attribute);
@@ -46,8 +44,6 @@ async function respondWithOmopInstances(attribute, includePatientIds, res) {
  * @param {string} attribute - OMOP class
  * @param {string} patientId - Patient ID
  * @param {boolean} includePatientIds - Include patient IDs in response
- * @param {Object} res - Express response object
- * @returns {Promise<void>}
  */
 async function respondWithOmopInstancesForPatient(attribute, patientId, includePatientIds, res) {
   const normalizedAttribute = normalizeOmopClass(attribute);
@@ -80,8 +76,6 @@ async function respondWithOmopInstancesForPatient(attribute, patientId, includeP
  * Get all supported OMOP classes
  * Returns an array of OMOP class names
  *
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
  * @returns {Promise<string[]>} Array of OMOP class names
  */
 exports.getOmopClasses = async (req, res) => {
@@ -102,10 +96,8 @@ exports.getOmopClasses = async (req, res) => {
  * Get all OMOP instances for a specific class
  * Returns an array of OMOP rows from one of the OMOP tables
  *
- * @param {Object} req - Express request object
  * @param {string} req.query.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
  * @param {string} req.path - Append /patients to include patient identifier arrays
- * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} OMOP class instances
  */
 exports.getOmopInstances = async (req, res) => {
@@ -130,10 +122,8 @@ exports.getOmopInstances = async (req, res) => {
  * Get OMOP instances for a specific OMOP class
  * Returns an array of OMOP rows from one of the OMOP tables
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
  * @param {string} req.path - Append /patients to include patient identifier arrays
- * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} OMOP class instances
  */
 exports.getOmopAttribute = async (req, res) => {
@@ -151,11 +141,9 @@ exports.getOmopAttribute = async (req, res) => {
  * Get OMOP instances for a specific class and patient
  * Returns only OMOP rows where the patient appears in the bitmap
  *
- * @param {Object} req - Express request object
  * @param {string} req.params.patientId - Patient ID (required)
  * @param {string} req.query.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
  * @param {string} req.path - Append /patients to include patient identifier arrays
- * @param {Object} res - Express response object
  * @returns {Promise<Object[]>} OMOP class instances for the patient
  */
 exports.getOmopInstancesForPatient = async (req, res) => {
