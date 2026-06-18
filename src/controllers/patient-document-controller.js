@@ -60,8 +60,6 @@ function normalizeEpisodeType(episode) {
  */
 async function fetchDocuments(patientId, documentIds = [], excludeProperties = []) {
     const prefix = `${patientId}`;
-
-    // Use the existing getByPrefix method to retrieve all patient data
     const results = await db.getByPrefix(prefix);
 
     // Filter to only include document objects (keys ending in _Doc.json or patientId.json)
@@ -144,10 +142,7 @@ exports.getDocuments = async (req, res) => {
         });
     }
 
-    // Parse documentIds into an array
     const documentIds = parseCsv(documentIdsParam);
-
-    // Parse excludeProperties into an array
     const excludeProperties = parseCsv(excludePropertiesParam);
 
     // Validate that excluded properties are valid DocumentXn properties

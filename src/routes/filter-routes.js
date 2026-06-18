@@ -11,10 +11,10 @@ const filterController = require("../controllers/filter-controller");
  *       (omop, attributes, cancers, concepts), a class within that type,
  *       and one or more instance values.
  *
- *       **Within** an item the instances are OR'd — a patient matches if they
+ *       **Within** an item the instances are OR'd: a patient matches if they
  *       have *any* of the listed values.
  *
- *       **Across** items the results are AND'd — a patient must satisfy
+ *       **Across** items the results are AND'd: a patient must satisfy
  *       *every* filter item.
  *
  *       Timing metrics are always returned so callers can monitor performance.

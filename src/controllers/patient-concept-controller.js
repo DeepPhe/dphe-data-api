@@ -17,17 +17,13 @@ exports.getConcepts = async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameter: patientId' });
     }
 
-    // Construct the filename key for concepts
     const key = `${patientId}_Concepts.json`;
-
-    // Retrieve concepts from the database
     const conceptsData = await db.get(key);
 
     if (!conceptsData) {
       return res.status(404).json({ error: 'Concepts not found for this patient' });
     }
 
-    // Extract concepts array from the "concepts" key
     /** @type {Concept[]} */
     const concepts = conceptsData.concepts && Array.isArray(conceptsData.concepts)
       ? conceptsData.concepts
@@ -57,17 +53,14 @@ exports.getConceptRelations = async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameter: patientId' });
     }
 
-    // Construct the filename key for concepts (same file contains both concepts and conceptRelations)
+    // Concepts and conceptRelations live in the same _Concepts.json file.
     const key = `${patientId}_Concepts.json`;
-
-    // Retrieve data from the database
     const conceptsData = await db.get(key);
 
     if (!conceptsData) {
       return res.status(404).json({ error: 'Concept relations not found for this patient' });
     }
 
-    // Extract conceptRelations array from the "conceptRelations" key
     /** @type {ConceptRelation[]} */
     const conceptRelations = conceptsData.conceptRelations && Array.isArray(conceptsData.conceptRelations)
       ? conceptsData.conceptRelations

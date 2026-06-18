@@ -891,12 +891,12 @@ class SQLiteClient {
      * Multi-criteria patient filter using Roaring bitmap intersection.
      *
      * Each filter item contains { type, class, instances[] }.
-     *   - Within an item the instance bitmaps are OR'd (patient matches ANY instance).
-     *   - Across items the results are AND'd (patient must match ALL items).
+     *   - Within an item the instance bitmaps are OR'd (patient matches any instance).
+     *   - Across items the results are AND'd (patient must match all items).
      *
      * @param {Array<{type: string, class: string, instances: string[]}>} filters
      * @param {boolean} includePatientIds - Resolve sequential IDs to patient IDs (default: false)
-     * @returns {Promise<{count: number, patient identifier arrays: string[], timing: Object}>}
+     * @returns {Promise<{count: number, patient_ids: string[], timing: Object}>}
      */
     async getFilteredPatientCount(filters, includePatientIds = false, autoIncludeThreshold = 20) {
         if (!this.isOpen) {
@@ -950,7 +950,7 @@ class SQLiteClient {
             }
         };
 
-        /* ── Phase 1: Query — fetch bitmap blobs for every filter item ── */
+        // Phase 1: fetch the bitmap blobs for every filter item.
         const queryStart = process.hrtime.bigint();
         const filterRows = [];
 
@@ -1006,7 +1006,7 @@ class SQLiteClient {
 
         const queryEnd = process.hrtime.bigint();
 
-        /* ── Phase 2: Bitmap ops — OR within items, AND across items ── */
+        // Phase 2: OR the bitmaps within each item, then AND across items.
         const bitmapStart = process.hrtime.bigint();
         const itemBitmaps = [];
         const itemCounts = [];
@@ -1027,7 +1027,7 @@ class SQLiteClient {
                 );
             }
 
-            // OR: patient in ANY selected instance for this filter item
+            // OR: patient in any selected instance for this filter item
             let itemBitmap;
             if (bitmaps.length === 0) {
                 itemBitmap = new roaring.RoaringBitmap32();
@@ -1041,7 +1041,7 @@ class SQLiteClient {
             itemCounts.push(itemBitmap.size);
         }
 
-        // AND: patient must match ALL filter items
+        // AND: patient must match all filter items
         let resultBitmap;
         if (itemBitmaps.length === 0) {
             resultBitmap = new roaring.RoaringBitmap32();
@@ -1061,7 +1061,7 @@ class SQLiteClient {
 
         const bitmapEnd = process.hrtime.bigint();
 
-        /* ── Phase 3: Resolve sequential IDs → patient IDs ────────── */
+        // Phase 3: resolve sequential IDs to patient IDs.
         // Auto-include patient IDs when the result count is small enough
         // (below autoIncludeThreshold), even when not explicitly requested.
         const shouldResolveIds =
@@ -1081,7 +1081,7 @@ class SQLiteClient {
 
         const resolveEnd = process.hrtime.bigint();
 
-        /* ── Build timing report ────────────────────────────────────── */
+        // Build the timing report.
         const ms = (s, e) => Math.round(Number(e - s) / 1e4) / 100; // 2-decimal ms
 
         return {

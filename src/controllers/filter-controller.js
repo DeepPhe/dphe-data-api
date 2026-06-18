@@ -32,7 +32,7 @@ function validateFilterItem(item, index) {
  * Across items, results are AND'd (patient must match all).
  *
  * Query params:
- *   ?includePatientIds=true  — also return the matching patient ID list
+ *   ?includePatientIds=true  also returns the matching patient ID list
  *
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -42,7 +42,7 @@ exports.getFilteredPatientCount = async (req, res) => {
   try {
     const { filters } = req.body || {};
 
-    /* ── Validate request body ──────────────────────────────────── */
+    // Validate the request body.
     if (!filters || !Array.isArray(filters) || filters.length === 0) {
       return res.status(400).json({
         error: 'Missing required body parameter: filters (must be a non-empty array)'
@@ -56,7 +56,6 @@ exports.getFilteredPatientCount = async (req, res) => {
       }
     }
 
-    /* ── Execute ────────────────────────────────────────────────── */
     const includePatientIds =
       String(req.query.includePatientIds).toLowerCase() === 'true';
 
