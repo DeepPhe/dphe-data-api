@@ -40,7 +40,7 @@ function validateFilterItem(item, index) {
  */
 exports.getFilteredPatientCount = async (req, res) => {
   try {
-    const { filters } = req.body;
+    const { filters } = req.body || {};
 
     /* ── Validate request body ──────────────────────────────────── */
     if (!filters || !Array.isArray(filters) || filters.length === 0) {
@@ -96,7 +96,7 @@ const MAX_BATCH_SIZE = 500;
  */
 exports.getBatchFilteredPatientCount = async (req, res) => {
   try {
-    const { queries } = req.body;
+    const { queries } = req.body || {};
 
     if (!Array.isArray(queries) || queries.length === 0) {
       return res.status(400).json({

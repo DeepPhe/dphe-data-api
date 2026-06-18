@@ -122,7 +122,7 @@ exports.getOmopInstances = async (req, res) => {
     }
 
     const includePatientIds = /\/patients\/?$/.test(req.path);
-    return respondWithOmopInstances(attribute, includePatientIds, res);
+    return await respondWithOmopInstances(attribute, includePatientIds, res);
   } catch (error) {
     console.error('Error fetching OMOP instances for class:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -143,7 +143,7 @@ exports.getOmopAttribute = async (req, res) => {
   try {
     const { attribute } = req.params;
     const includePatientIds = /\/patients\/?$/.test(req.path);
-    return respondWithOmopInstances(attribute, includePatientIds, res);
+    return await respondWithOmopInstances(attribute, includePatientIds, res);
   } catch (error) {
     console.error('Error fetching OMOP attribute:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -179,7 +179,12 @@ exports.getOmopInstancesForPatient = async (req, res) => {
     }
 
     const includePatientIds = /\/patients\/?$/.test(req.path);
-    return respondWithOmopInstancesForPatient(attribute, patientId, includePatientIds, res);
+    return await respondWithOmopInstancesForPatient(
+      attribute,
+      patientId,
+      includePatientIds,
+      res
+    );
   } catch (error) {
     console.error('Error fetching OMOP instances for class and patient:', error);
     res.status(500).json({ error: 'Internal server error' });
