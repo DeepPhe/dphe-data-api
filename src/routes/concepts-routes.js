@@ -1,7 +1,7 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const conceptsController = require("../controllers/concepts-controller");
-const summaryController = require("../controllers/summary-controller");
+const conceptsController = require('../controllers/concepts-controller');
+const summaryController = require('../controllers/summary-controller');
 
 /**
  * @openapi
@@ -22,7 +22,7 @@ const summaryController = require("../controllers/summary-controller");
  *       500:
  *         description: Internal server error
  */
-router.get("/classes", conceptsController.getConceptsClasses);
+router.get('/classes', conceptsController.getConceptsClasses);
 
 /**
  * @openapi
@@ -65,7 +65,7 @@ router.get("/classes", conceptsController.getConceptsClasses);
  *       500:
  *         description: Internal server error
  */
-router.get("/summary", summaryController.getConceptsSummary);
+router.get('/summary', summaryController.getConceptsSummary);
 
 /**
  * @openapi
@@ -131,7 +131,7 @@ router.get("/summary", summaryController.getConceptsSummary);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances", conceptsController.getConceptsInstances);
+router.get('/instances', conceptsController.getConceptsInstances);
 
 /**
  * @openapi
@@ -157,7 +157,7 @@ router.get("/instances", conceptsController.getConceptsInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patients", conceptsController.getConceptsInstances);
+router.get('/instances/patients', conceptsController.getConceptsInstances);
 
 /**
  * @openapi
@@ -189,7 +189,10 @@ router.get("/instances/patients", conceptsController.getConceptsInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patient/:patientId", conceptsController.getConceptsInstancesForPatient);
-router.get("/instances/patient/:patientId/patients", conceptsController.getConceptsInstancesForPatient);
+router.get('/instances/patient/:patientId', conceptsController.getConceptsInstancesForPatient);
+router.get(
+  '/instances/patient/:patientId/patients',
+  conceptsController.getConceptsInstancesForPatient,
+);
 
 module.exports = router;

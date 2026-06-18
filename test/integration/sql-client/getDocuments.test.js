@@ -1,7 +1,5 @@
 const { db } = require('../../../src/db');
-const {
-  getDocuments
-} = require('../../../src/controllers/patient-document-controller');
+const { getDocuments } = require('../../../src/controllers/patient-document-controller');
 const { invokeController } = require('../../helpers/invoke-controller');
 
 describe('getDocuments', () => {
@@ -13,7 +11,7 @@ describe('getDocuments', () => {
   test('returns documents for the configured patient', async () => {
     const { body, status } = await invokeController(getDocuments, {
       params: { patientId },
-      query: {}
+      query: {},
     });
 
     expect(status).toBe(200);
@@ -27,7 +25,7 @@ describe('getDocuments', () => {
   test('excludes requested document properties', async () => {
     const { body, status } = await invokeController(getDocuments, {
       params: { patientId },
-      query: { excludeProperties: 'text,mentions,mentionRelations' }
+      query: { excludeProperties: 'text,mentions,mentionRelations' },
     });
 
     expect(status).toBe(200);
@@ -44,7 +42,7 @@ describe('getDocuments', () => {
   test('requires patientId', async () => {
     const { body, status } = await invokeController(getDocuments, {
       params: {},
-      query: {}
+      query: {},
     });
 
     expect(status).toBe(400);
@@ -54,7 +52,7 @@ describe('getDocuments', () => {
   test('rejects invalid excludeProperties', async () => {
     const { body, status } = await invokeController(getDocuments, {
       params: { patientId },
-      query: { excludeProperties: 'invalidProperty,anotherInvalid' }
+      query: { excludeProperties: 'invalidProperty,anotherInvalid' },
     });
 
     expect(status).toBe(400);
@@ -64,27 +62,25 @@ describe('getDocuments', () => {
   test('filters by documentIds', async () => {
     const allDocuments = await invokeController(getDocuments, {
       params: { patientId },
-      query: {}
+      query: {},
     });
     expect(allDocuments.body.length).toBeGreaterThanOrEqual(2);
 
     const expectedIds = allDocuments.body.slice(0, 2).map((document) => document.id);
     const { body, status } = await invokeController(getDocuments, {
       params: { patientId },
-      query: { documentIds: expectedIds.join(',') }
+      query: { documentIds: expectedIds.join(',') },
     });
 
     expect(status).toBe(200);
-    expect(body.map((document) => document.id)).toEqual(
-      expect.arrayContaining(expectedIds)
-    );
+    expect(body.map((document) => document.id)).toEqual(expect.arrayContaining(expectedIds));
     expect(body).toHaveLength(2);
   });
 
   test('returns an empty array when documentIds do not match', async () => {
     const { body, status } = await invokeController(getDocuments, {
       params: { patientId },
-      query: { documentIds: 'nonexistent_doc_id_1,nonexistent_doc_id_2' }
+      query: { documentIds: 'nonexistent_doc_id_1,nonexistent_doc_id_2' },
     });
 
     expect(status).toBe(200);

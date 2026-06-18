@@ -1,0 +1,16 @@
+node_modules/
+coverage/
+.ai/
+dist/
+build/
+package-lock.json
+
+# Generated / vendored
+src/types/
+src/docs/generated-components.js
+schema.json
+
+# Test fixtures and data
+test/resources/
+test/unit/data/
+test/unit/sqlite-client/data/

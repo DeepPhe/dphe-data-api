@@ -5,7 +5,7 @@ const controllers = createGroupControllers({
   resourceName: 'attribute',
   classMethod: 'getAttributesClasses',
   instancesMethod: 'getAttributesInstances',
-  patientInstancesMethod: 'getAttributesInstancesForPatient'
+  patientInstancesMethod: 'getAttributesInstancesForPatient',
 });
 
 exports.getAttributesClasses = controllers.getClasses;

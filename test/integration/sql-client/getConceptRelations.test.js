@@ -1,7 +1,5 @@
 const { db } = require('../../../src/db');
-const {
-  getConceptRelations
-} = require('../../../src/controllers/patient-concept-controller');
+const { getConceptRelations } = require('../../../src/controllers/patient-concept-controller');
 const { invokeController } = require('../../helpers/invoke-controller');
 
 describe('getConceptRelations', () => {
@@ -12,7 +10,7 @@ describe('getConceptRelations', () => {
 
   test('returns concept relations matching the expected shape', async () => {
     const { body, status } = await invokeController(getConceptRelations, {
-      query: { patientId }
+      query: { patientId },
     });
 
     expect(status).toBe(200);
@@ -42,7 +40,7 @@ describe('getConceptRelations', () => {
 
   test('requires patientId', async () => {
     const { body, status } = await invokeController(getConceptRelations, {
-      query: {}
+      query: {},
     });
 
     expect(status).toBe(400);
@@ -51,7 +49,7 @@ describe('getConceptRelations', () => {
 
   test('returns 404 for an unknown patient', async () => {
     const { body, status } = await invokeController(getConceptRelations, {
-      query: { patientId: 'NONEXISTENT_PATIENT_99999' }
+      query: { patientId: 'NONEXISTENT_PATIENT_99999' },
     });
 
     expect(status).toBe(404);

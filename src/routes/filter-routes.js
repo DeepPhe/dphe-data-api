@@ -1,6 +1,6 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const filterController = require("../controllers/filter-controller");
+const filterController = require('../controllers/filter-controller');
 /**
  * @openapi
  * /v1/deepphe-api/deepphe/filter/count:
@@ -105,7 +105,7 @@ const filterController = require("../controllers/filter-controller");
  *       500:
  *         description: Internal server error
  */
-router.post("/count", filterController.getFilteredPatientCount);
+router.post('/count', filterController.getFilteredPatientCount);
 
 /**
  * @openapi
@@ -186,7 +186,7 @@ router.post("/count", filterController.getFilteredPatientCount);
  *       500:
  *         description: Internal server error
  */
-router.post("/count/batch", filterController.getBatchFilteredPatientCount);
+router.post('/count/batch', filterController.getBatchFilteredPatientCount);
 
 /**
  * @openapi
@@ -231,5 +231,5 @@ router.post("/count/batch", filterController.getBatchFilteredPatientCount);
  *       500:
  *         description: Internal server error
  */
-router.post("/summary", filterController.getPatientSummaries);
+router.post('/summary', filterController.getPatientSummaries);
 module.exports = router;

@@ -38,7 +38,7 @@ const groupControllers = createGroupControllers({
   resourceName: 'concept',
   classMethod: 'getConceptsClasses',
   instancesMethod: 'getConceptsInstances',
-  patientInstancesMethod: 'getConceptsInstancesForPatient'
+  patientInstancesMethod: 'getConceptsInstancesForPatient',
 });
 
 exports.getConceptsClasses = groupControllers.getClasses;

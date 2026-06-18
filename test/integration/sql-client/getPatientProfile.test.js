@@ -21,7 +21,7 @@ describe('SQLiteClient patient profile endpoints', () => {
             return reject(err);
           }
           resolve(row || null);
-        }
+        },
       );
     }).catch(() => null);
 

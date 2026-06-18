@@ -19,9 +19,9 @@ async function convertSchemaToOpenAPI(schema, typeName) {
     schemas: {
       [typeName]: {
         ...schema,
-        title: typeName
-      }
-    }
+        title: typeName,
+      },
+    },
   };
 }
 
@@ -40,7 +40,7 @@ function fixSchemaReferences(schema, urlToNameMap) {
   if (!schema || typeof schema !== 'object') return;
 
   // Process each property
-  Object.keys(schema).forEach(key => {
+  Object.keys(schema).forEach((key) => {
     const value = schema[key];
 
     // Handle $ref specially
@@ -57,7 +57,7 @@ function fixSchemaReferences(schema, urlToNameMap) {
     // Recursively process nested objects and arrays
     else if (typeof value === 'object' && value !== null) {
       if (Array.isArray(value)) {
-        value.forEach(item => fixSchemaReferences(item, urlToNameMap));
+        value.forEach((item) => fixSchemaReferences(item, urlToNameMap));
       } else {
         fixSchemaReferences(value, urlToNameMap);
       }
@@ -96,7 +96,7 @@ async function generateModelsFromRepo() {
       // Add title to schema for proper type naming
       const schemaWithTitle = {
         ...schema,
-        title: typeName
+        title: typeName,
       };
 
       // Fix any references to other schemas
@@ -111,7 +111,7 @@ async function generateModelsFromRepo() {
         bannerComment: '',
         style: { singleQuote: true },
         unreachableDefinitions: false,
-        declareExternallyReferenced: false
+        declareExternallyReferenced: false,
       });
 
       fs.writeFileSync(path.join(typesDir, `${typeName}.d.ts`), tsCode);
@@ -128,5 +128,5 @@ async function generateModelsFromRepo() {
 }
 
 module.exports = {
-  generateModelsFromRepo
+  generateModelsFromRepo,
 };

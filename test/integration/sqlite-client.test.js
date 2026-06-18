@@ -28,7 +28,7 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
             return;
           }
           resolve(rows);
-        }
+        },
       );
     });
     expect(mappings.length).toBeGreaterThan(0);
@@ -44,8 +44,8 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
     const expectedById = new Map(
       mappings.map(({ sequential_id: sequentialId, patient_id: patientId }) => [
         sequentialId,
-        patientId
-      ])
+        patientId,
+      ]),
     );
     const expected = bitmap
       .toArray()
@@ -59,16 +59,12 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
     const bitmap = new roaring.RoaringBitmap32();
     fs.writeFileSync(bitmapPath, bitmap.serialize(false));
 
-    await expect(db.patientBitmapToPatientIds(bitmapPath, 'file')).resolves.toEqual(
-      []
-    );
+    await expect(db.patientBitmapToPatientIds(bitmapPath, 'file')).resolves.toEqual([]);
   });
 
   test('rejects an invalid source type', async () => {
-    await expect(
-      db.patientBitmapToPatientIds(Buffer.alloc(0), 'invalid')
-    ).rejects.toThrow(
-      'Invalid sourceType. Must be "file", "buffer", or "base64"'
+    await expect(db.patientBitmapToPatientIds(Buffer.alloc(0), 'invalid')).rejects.toThrow(
+      'Invalid sourceType. Must be "file", "buffer", or "base64"',
     );
   });
 });

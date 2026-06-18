@@ -23,21 +23,18 @@ async function respondWithOmopInstances(attribute, includePatientIds, res) {
 
   if (!normalizedAttribute) {
     return res.status(400).json({
-      error: `Invalid attribute type. Must be one of: ${VALID_OMOP_CLASSES.join(', ')}`
+      error: `Invalid attribute type. Must be one of: ${VALID_OMOP_CLASSES.join(', ')}`,
     });
   }
 
   const db = getInstance();
   await db.open();
 
-  const omopInstances = await db.getOmopInstances(
-    normalizedAttribute,
-    includePatientIds
-  );
+  const omopInstances = await db.getOmopInstances(normalizedAttribute, includePatientIds);
 
   if (!omopInstances || omopInstances.length === 0) {
     return res.status(404).json({
-      error: 'No OMOP entries found for this class'
+      error: 'No OMOP entries found for this class',
     });
   }
 
@@ -57,7 +54,7 @@ async function respondWithOmopInstancesForPatient(attribute, patientId, includeP
 
   if (!normalizedAttribute) {
     return res.status(400).json({
-      error: `Invalid attribute type. Must be one of: ${VALID_OMOP_CLASSES.join(', ')}`
+      error: `Invalid attribute type. Must be one of: ${VALID_OMOP_CLASSES.join(', ')}`,
     });
   }
 
@@ -67,12 +64,12 @@ async function respondWithOmopInstancesForPatient(attribute, patientId, includeP
   const omopInstances = await db.getOmopInstancesForPatient(
     normalizedAttribute,
     patientId,
-    includePatientIds
+    includePatientIds,
   );
 
   if (!omopInstances || omopInstances.length === 0) {
     return res.status(404).json({
-      error: 'No OMOP entries found for this class and patient'
+      error: 'No OMOP entries found for this class and patient',
     });
   }
 
@@ -117,7 +114,7 @@ exports.getOmopInstances = async (req, res) => {
 
     if (!attribute) {
       return res.status(400).json({
-        error: 'Missing required parameter: attribute'
+        error: 'Missing required parameter: attribute',
       });
     }
 
@@ -168,23 +165,18 @@ exports.getOmopInstancesForPatient = async (req, res) => {
 
     if (!patientId) {
       return res.status(400).json({
-        error: 'Missing required parameter: patientId'
+        error: 'Missing required parameter: patientId',
       });
     }
 
     if (!attribute) {
       return res.status(400).json({
-        error: 'Missing required parameter: attribute'
+        error: 'Missing required parameter: attribute',
       });
     }
 
     const includePatientIds = /\/patients\/?$/.test(req.path);
-    return await respondWithOmopInstancesForPatient(
-      attribute,
-      patientId,
-      includePatientIds,
-      res
-    );
+    return await respondWithOmopInstancesForPatient(attribute, patientId, includePatientIds, res);
   } catch (error) {
     console.error('Error fetching OMOP instances for class and patient:', error);
     res.status(500).json({ error: 'Internal server error' });

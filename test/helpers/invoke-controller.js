@@ -10,7 +10,7 @@ async function invokeController(controller, req) {
     json(data) {
       body = data;
       return res;
-    }
+    },
   };
 
   await controller(req, res);

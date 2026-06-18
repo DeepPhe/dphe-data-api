@@ -21,23 +21,17 @@ describe('getConceptsByGroup and getConceptsForGroup', () => {
   });
 
   test('returns an empty array for an unknown group', async () => {
-    await expect(
-      db.getConceptsForGroup('non-existent-concept-group')
-    ).resolves.toEqual([]);
+    await expect(db.getConceptsForGroup('non-existent-concept-group')).resolves.toEqual([]);
   });
 
   test('throws when the database is closed', async () => {
     const closedDb = {
       isOpen: false,
       getConceptsByGroup: db.getConceptsByGroup,
-      getConceptsForGroup: db.getConceptsForGroup
+      getConceptsForGroup: db.getConceptsForGroup,
     };
 
-    await expect(closedDb.getConceptsByGroup()).rejects.toThrow(
-      'Database is not open'
-    );
-    await expect(closedDb.getConceptsForGroup('any-group')).rejects.toThrow(
-      'Database is not open'
-    );
+    await expect(closedDb.getConceptsByGroup()).rejects.toThrow('Database is not open');
+    await expect(closedDb.getConceptsForGroup('any-group')).rejects.toThrow('Database is not open');
   });
 });

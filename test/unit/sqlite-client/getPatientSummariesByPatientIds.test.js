@@ -23,7 +23,7 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
             return reject(err);
           }
           resolve(row);
-        }
+        },
       );
     });
 
@@ -67,8 +67,8 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
 
   test('throws if database is not open', async () => {
     const closedDb = new SQLiteClient('/tmp/nonexistent.sqlite');
-    await expect(
-      closedDb.getPatientSummariesByPatientIds(['123'])
-    ).rejects.toThrow('Database is not open');
+    await expect(closedDb.getPatientSummariesByPatientIds(['123'])).rejects.toThrow(
+      'Database is not open',
+    );
   });
 });

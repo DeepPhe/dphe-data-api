@@ -21,23 +21,17 @@ describe('getCancersByGroup and getCancersForGroup', () => {
   });
 
   test('returns an empty array for an unknown group', async () => {
-    await expect(
-      db.getCancersForGroup('non-existent-cancer-group')
-    ).resolves.toEqual([]);
+    await expect(db.getCancersForGroup('non-existent-cancer-group')).resolves.toEqual([]);
   });
 
   test('throws when the database is closed', async () => {
     const closedDb = {
       isOpen: false,
       getCancersByGroup: db.getCancersByGroup,
-      getCancersForGroup: db.getCancersForGroup
+      getCancersForGroup: db.getCancersForGroup,
     };
 
-    await expect(closedDb.getCancersByGroup()).rejects.toThrow(
-      'Database is not open'
-    );
-    await expect(closedDb.getCancersForGroup('any-group')).rejects.toThrow(
-      'Database is not open'
-    );
+    await expect(closedDb.getCancersByGroup()).rejects.toThrow('Database is not open');
+    await expect(closedDb.getCancersForGroup('any-group')).rejects.toThrow('Database is not open');
   });
 });

@@ -21,8 +21,6 @@ describe('SQLiteClient concept groups', () => {
   });
 
   test('returns an empty array for an unknown group', async () => {
-    await expect(
-      db.getConceptsForGroup('non-existent-concept-group')
-    ).resolves.toEqual([]);
+    await expect(db.getConceptsForGroup('non-existent-concept-group')).resolves.toEqual([]);
   });
 });

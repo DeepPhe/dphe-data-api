@@ -1,7 +1,7 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const attributesController = require("../controllers/attributes-controller");
-const summaryController = require("../controllers/summary-controller");
+const attributesController = require('../controllers/attributes-controller');
+const summaryController = require('../controllers/summary-controller');
 
 /**
  * @openapi
@@ -22,7 +22,7 @@ const summaryController = require("../controllers/summary-controller");
  *       500:
  *         description: Internal server error
  */
-router.get("/classes", attributesController.getAttributesClasses);
+router.get('/classes', attributesController.getAttributesClasses);
 
 /**
  * @openapi
@@ -65,7 +65,7 @@ router.get("/classes", attributesController.getAttributesClasses);
  *       500:
  *         description: Internal server error
  */
-router.get("/summary", summaryController.getAttributesSummary);
+router.get('/summary', summaryController.getAttributesSummary);
 
 /**
  * @openapi
@@ -131,7 +131,7 @@ router.get("/summary", summaryController.getAttributesSummary);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances", attributesController.getAttributesInstances);
+router.get('/instances', attributesController.getAttributesInstances);
 
 /**
  * @openapi
@@ -157,7 +157,7 @@ router.get("/instances", attributesController.getAttributesInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patients", attributesController.getAttributesInstances);
+router.get('/instances/patients', attributesController.getAttributesInstances);
 
 /**
  * @openapi
@@ -189,7 +189,10 @@ router.get("/instances/patients", attributesController.getAttributesInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patient/:patientId", attributesController.getAttributesInstancesForPatient);
-router.get("/instances/patient/:patientId/patients", attributesController.getAttributesInstancesForPatient);
+router.get('/instances/patient/:patientId', attributesController.getAttributesInstancesForPatient);
+router.get(
+  '/instances/patient/:patientId/patients',
+  attributesController.getAttributesInstancesForPatient,
+);
 
 module.exports = router;

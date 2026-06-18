@@ -10,7 +10,8 @@ describe('SQLiteClient summary methods', () => {
 
   test('getOmopSummary builds classes and instancesByClass using includePatientIds flag', async () => {
     db.getOmopClasses = jest.fn().mockResolvedValue(['RACE', 'GENDER']);
-    db.getOmopInstances = jest.fn()
+    db.getOmopInstances = jest
+      .fn()
       .mockResolvedValueOnce([{ value: 'White', count: 10 }])
       .mockResolvedValueOnce([{ value: 'Female', count: 8 }]);
 
@@ -23,8 +24,8 @@ describe('SQLiteClient summary methods', () => {
       classes: ['RACE', 'GENDER'],
       instancesByClass: {
         RACE: [{ value: 'White', count: 10 }],
-        GENDER: [{ value: 'Female', count: 8 }]
-      }
+        GENDER: [{ value: 'Female', count: 8 }],
+      },
     });
   });
 
@@ -39,14 +40,15 @@ describe('SQLiteClient summary methods', () => {
     expect(result).toEqual({
       classes: ['Behavior'],
       instancesByClass: {
-        Behavior: [{ value: 'Benign', count: 3 }]
-      }
+        Behavior: [{ value: 'Benign', count: 3 }],
+      },
     });
   });
 
   test('getCancersSummary builds per-class arrays', async () => {
     db.getCancersClasses = jest.fn().mockResolvedValue(['Breast_Cancer', 'Lung_Cancer']);
-    db.getCancersInstances = jest.fn()
+    db.getCancersInstances = jest
+      .fn()
       .mockResolvedValueOnce([{ value: 'Breast Cancer', count: 5 }])
       .mockResolvedValueOnce([{ value: 'Lung Cancer', count: 2 }]);
 
@@ -70,8 +72,8 @@ describe('SQLiteClient summary methods', () => {
     expect(result).toEqual({
       classes: ['Biomarkers'],
       instancesByClass: {
-        Biomarkers: [{ value: 'HER2', count: 7 }]
-      }
+        Biomarkers: [{ value: 'HER2', count: 7 }],
+      },
     });
   });
 

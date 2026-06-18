@@ -25,9 +25,8 @@ exports.getConcepts = async (req, res) => {
     }
 
     /** @type {Concept[]} */
-    const concepts = conceptsData.concepts && Array.isArray(conceptsData.concepts)
-      ? conceptsData.concepts
-      : [];
+    const concepts =
+      conceptsData.concepts && Array.isArray(conceptsData.concepts) ? conceptsData.concepts : [];
 
     res.status(200).json(concepts);
   } catch (error) {
@@ -62,9 +61,10 @@ exports.getConceptRelations = async (req, res) => {
     }
 
     /** @type {ConceptRelation[]} */
-    const conceptRelations = conceptsData.conceptRelations && Array.isArray(conceptsData.conceptRelations)
-      ? conceptsData.conceptRelations
-      : [];
+    const conceptRelations =
+      conceptsData.conceptRelations && Array.isArray(conceptsData.conceptRelations)
+        ? conceptsData.conceptRelations
+        : [];
 
     res.status(200).json(conceptRelations);
   } catch (error) {

@@ -33,23 +33,19 @@ describe('getAttributesByGroup and getAttributesForGroup', () => {
   });
 
   test('returns an empty array for an unknown group', async () => {
-    await expect(
-      db.getAttributesForGroup('non-existent-attribute-group')
-    ).resolves.toEqual([]);
+    await expect(db.getAttributesForGroup('non-existent-attribute-group')).resolves.toEqual([]);
   });
 
   test('throws when the database is closed', async () => {
     const closedDb = {
       isOpen: false,
       getAttributesByGroup: db.getAttributesByGroup,
-      getAttributesForGroup: db.getAttributesForGroup
+      getAttributesForGroup: db.getAttributesForGroup,
     };
 
-    await expect(closedDb.getAttributesByGroup()).rejects.toThrow(
-      'Database is not open'
-    );
+    await expect(closedDb.getAttributesByGroup()).rejects.toThrow('Database is not open');
     await expect(closedDb.getAttributesForGroup('any-group')).rejects.toThrow(
-      'Database is not open'
+      'Database is not open',
     );
   });
 });

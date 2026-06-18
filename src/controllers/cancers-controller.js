@@ -38,7 +38,7 @@ const groupControllers = createGroupControllers({
   resourceName: 'cancer',
   classMethod: 'getCancersClasses',
   instancesMethod: 'getCancersInstances',
-  patientInstancesMethod: 'getCancersInstancesForPatient'
+  patientInstancesMethod: 'getCancersInstancesForPatient',
 });
 
 exports.getCancersClasses = groupControllers.getClasses;

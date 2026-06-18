@@ -1,7 +1,7 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const omopController = require("../controllers/omop-controller");
-const summaryController = require("../controllers/summary-controller");
+const omopController = require('../controllers/omop-controller');
+const summaryController = require('../controllers/summary-controller');
 
 /**
  * @openapi
@@ -22,10 +22,10 @@ const summaryController = require("../controllers/summary-controller");
  *       500:
  *         description: Internal server error
  */
-router.get("/classes", omopController.getOmopClasses);
+router.get('/classes', omopController.getOmopClasses);
 
 // Alias route kept for compatibility; intentionally hidden from Swagger docs.
-router.get("/classes/patients", omopController.getOmopClasses);
+router.get('/classes/patients', omopController.getOmopClasses);
 
 /**
  * @openapi
@@ -68,7 +68,7 @@ router.get("/classes/patients", omopController.getOmopClasses);
  *       500:
  *         description: Internal server error
  */
-router.get("/summary", summaryController.getOmopSummary);
+router.get('/summary', summaryController.getOmopSummary);
 
 /**
  * @openapi
@@ -101,7 +101,7 @@ router.get("/summary", summaryController.getOmopSummary);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances", omopController.getOmopInstances);
+router.get('/instances', omopController.getOmopInstances);
 
 /**
  * @openapi
@@ -128,7 +128,7 @@ router.get("/instances", omopController.getOmopInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patients", omopController.getOmopInstances);
+router.get('/instances/patients', omopController.getOmopInstances);
 
 /**
  * @openapi
@@ -161,8 +161,8 @@ router.get("/instances/patients", omopController.getOmopInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patient/:patientId", omopController.getOmopInstancesForPatient);
-router.get("/instances/patient/:patientId/patients", omopController.getOmopInstancesForPatient);
+router.get('/instances/patient/:patientId', omopController.getOmopInstancesForPatient);
+router.get('/instances/patient/:patientId/patients', omopController.getOmopInstancesForPatient);
 
 /**
  * @openapi
@@ -201,7 +201,7 @@ router.get("/instances/patient/:patientId/patients", omopController.getOmopInsta
  *       500:
  *         description: Internal server error
  */
-router.get("/:personid/:attribute", omopController.getOmopAttribute);
+router.get('/:personid/:attribute', omopController.getOmopAttribute);
 
 /**
  * @openapi
@@ -234,6 +234,6 @@ router.get("/:personid/:attribute", omopController.getOmopAttribute);
  *       500:
  *         description: Internal server error
  */
-router.get("/:personid/:attribute/patients", omopController.getOmopAttribute);
+router.get('/:personid/:attribute/patients', omopController.getOmopAttribute);
 
 module.exports = router;

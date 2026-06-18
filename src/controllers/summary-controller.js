@@ -47,8 +47,8 @@ function createSummaryHandler(dbMethodName, errorContext) {
       return res.status(200).json({
         ...summary,
         timing: {
-          totalMs: getElapsedMs(start)
-        }
+          totalMs: getElapsedMs(start),
+        },
       });
     } catch (error) {
       console.error(`Error in ${errorContext}:`, error);

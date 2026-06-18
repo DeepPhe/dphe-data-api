@@ -1,5 +1,5 @@
-const { getInstance } = require("./sqlite-client");
-const { DB_PATH } = require("../config/database");
+const { getInstance } = require('./sqlite-client');
+const { DB_PATH } = require('../config/database');
 
 // Get the database instance
 const db = getInstance(DB_PATH);
@@ -13,7 +13,7 @@ async function initializeDatabase() {
     await db.open();
     return db;
   } catch (error) {
-    console.error("Failed to initialize database:", error);
+    console.error('Failed to initialize database:', error);
     throw error;
   }
 }
@@ -26,7 +26,7 @@ async function closeDatabase() {
   try {
     await db.close();
   } catch (error) {
-    console.error("Failed to close database:", error);
+    console.error('Failed to close database:', error);
     throw error;
   }
 }

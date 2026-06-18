@@ -16,7 +16,7 @@ const conceptsInstancesPath = paths['/v1/dphe-data/concepts/instances'];
 
 if (cancersInstancesPath && cancersInstancesPath.get) {
   const cancersParams = cancersInstancesPath.get.parameters || [];
-  const hasIncludePatientIds = cancersParams.some(param => param.name === 'includePatientIds');
+  const hasIncludePatientIds = cancersParams.some((param) => param.name === 'includePatientIds');
   console.log('cancers/instances has includePatientIds parameter:', hasIncludePatientIds);
 } else {
   console.log('cancers/instances endpoint not found in OpenAPI spec');
@@ -24,7 +24,7 @@ if (cancersInstancesPath && cancersInstancesPath.get) {
 
 if (conceptsInstancesPath && conceptsInstancesPath.get) {
   const conceptsParams = conceptsInstancesPath.get.parameters || [];
-  const hasIncludePatientIds = conceptsParams.some(param => param.name === 'includePatientIds');
+  const hasIncludePatientIds = conceptsParams.some((param) => param.name === 'includePatientIds');
   console.log('concepts/instances has includePatientIds parameter:', hasIncludePatientIds);
 } else {
   console.log('concepts/instances endpoint not found in OpenAPI spec');

@@ -9,5 +9,5 @@ const configuredDbPath = process.env.DB_PATH || DEFAULT_DB_PATH;
 
 module.exports = {
   DEFAULT_DB_PATH,
-  DB_PATH: path.resolve(configuredDbPath)
+  DB_PATH: path.resolve(configuredDbPath),
 };

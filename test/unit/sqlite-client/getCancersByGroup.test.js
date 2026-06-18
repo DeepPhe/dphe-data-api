@@ -21,8 +21,6 @@ describe('SQLiteClient cancer groups', () => {
   });
 
   test('returns an empty array for an unknown group', async () => {
-    await expect(
-      db.getCancersForGroup('non-existent-cancer-group')
-    ).resolves.toEqual([]);
+    await expect(db.getCancersForGroup('non-existent-cancer-group')).resolves.toEqual([]);
   });
 });

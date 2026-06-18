@@ -11,7 +11,7 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
     await db.open();
     const [raceRows, genderRows] = await Promise.all([
       db.getOmopInstances('RACE', false),
-      db.getOmopInstances('GENDER', false)
+      db.getOmopInstances('GENDER', false),
     ]);
     raceValues = raceRows.map((row) => row.race).filter(Boolean);
     genderValues = genderRows.map((row) => row.gender).filter(Boolean);
@@ -24,7 +24,7 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
 
   test('returns count and timing for a single filter', async () => {
     const result = await db.getFilteredPatientCount([
-      { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }
+      { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) },
     ]);
 
     expect(result.count).toBeGreaterThanOrEqual(0);
@@ -35,7 +35,7 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
   test('intersects multiple filters', async () => {
     const filters = [
       { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) },
-      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) }
+      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) },
     ];
     const result = await db.getFilteredPatientCount(filters);
 
@@ -51,10 +51,10 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
         {
           type: 'omop',
           class: 'GENDER',
-          instances: genderValues.slice(0, 1)
-        }
+          instances: genderValues.slice(0, 1),
+        },
       ],
-      true
+      true,
     );
 
     expect(result.patient_ids).toHaveLength(result.count);
@@ -64,7 +64,7 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
   test('handles repeated filters in under two seconds', async () => {
     const pool = [
       { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) },
-      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) }
+      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) },
     ];
     const filters = Array.from({ length: 10 }, (_, index) => {
       return pool[index % pool.length];
@@ -78,17 +78,13 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
 
   test('rejects an invalid filter type', async () => {
     await expect(
-      db.getFilteredPatientCount([
-        { type: 'bogus', class: 'X', instances: ['Y'] }
-      ])
+      db.getFilteredPatientCount([{ type: 'bogus', class: 'X', instances: ['Y'] }]),
     ).rejects.toThrow('Invalid filter type');
   });
 
   test('rejects an invalid OMOP class', async () => {
     await expect(
-      db.getFilteredPatientCount([
-        { type: 'omop', class: 'NONEXISTENT', instances: ['Y'] }
-      ])
+      db.getFilteredPatientCount([{ type: 'omop', class: 'NONEXISTENT', instances: ['Y'] }]),
     ).rejects.toThrow('Invalid OMOP class');
   });
 
@@ -97,8 +93,8 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
       {
         type: 'omop',
         class: 'RACE',
-        instances: ['ZZZ_NO_SUCH_RACE_VALUE']
-      }
+        instances: ['ZZZ_NO_SUCH_RACE_VALUE'],
+      },
     ]);
 
     expect(result.count).toBe(0);
@@ -110,19 +106,15 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
     const closedDb = new SQLiteClient('/tmp/nonexistent');
 
     await expect(
-      closedDb.getFilteredPatientCount([
-        { type: 'omop', class: 'RACE', instances: ['White'] }
-      ])
+      closedDb.getFilteredPatientCount([{ type: 'omop', class: 'RACE', instances: ['White'] }]),
     ).rejects.toThrow('Database is not open');
   });
 
   test('can disable automatic patient ID inclusion', async () => {
     const result = await db.getFilteredPatientCount(
-      [
-        { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }
-      ],
+      [{ type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }],
       false,
-      0
+      0,
     );
 
     expect(result.patient_ids).toEqual([]);

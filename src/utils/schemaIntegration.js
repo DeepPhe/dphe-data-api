@@ -25,5 +25,5 @@ function validateAgainstSchema(data, schemaName) {
 
 module.exports = {
   validateAgainstSchema,
-  loadSchemas
+  loadSchemas,
 };

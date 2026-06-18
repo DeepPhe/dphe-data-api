@@ -1,7 +1,7 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const cancersController = require("../controllers/cancers-controller");
-const summaryController = require("../controllers/summary-controller");
+const cancersController = require('../controllers/cancers-controller');
+const summaryController = require('../controllers/summary-controller');
 
 /**
  * @openapi
@@ -22,7 +22,7 @@ const summaryController = require("../controllers/summary-controller");
  *       500:
  *         description: Internal server error
  */
-router.get("/classes", cancersController.getCancersClasses);
+router.get('/classes', cancersController.getCancersClasses);
 
 /**
  * @openapi
@@ -65,7 +65,7 @@ router.get("/classes", cancersController.getCancersClasses);
  *       500:
  *         description: Internal server error
  */
-router.get("/summary", summaryController.getCancersSummary);
+router.get('/summary', summaryController.getCancersSummary);
 
 /**
  * @openapi
@@ -127,7 +127,7 @@ router.get("/summary", summaryController.getCancersSummary);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances", cancersController.getCancersInstances);
+router.get('/instances', cancersController.getCancersInstances);
 
 /**
  * @openapi
@@ -153,7 +153,7 @@ router.get("/instances", cancersController.getCancersInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patients", cancersController.getCancersInstances);
+router.get('/instances/patients', cancersController.getCancersInstances);
 
 /**
  * @openapi
@@ -185,7 +185,10 @@ router.get("/instances/patients", cancersController.getCancersInstances);
  *       500:
  *         description: Internal server error
  */
-router.get("/instances/patient/:patientId", cancersController.getCancersInstancesForPatient);
-router.get("/instances/patient/:patientId/patients", cancersController.getCancersInstancesForPatient);
+router.get('/instances/patient/:patientId', cancersController.getCancersInstancesForPatient);
+router.get(
+  '/instances/patient/:patientId/patients',
+  cancersController.getCancersInstancesForPatient,
+);
 
 module.exports = router;

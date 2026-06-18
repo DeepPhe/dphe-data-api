@@ -1,8 +1,8 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const patientDocumentController = require("../controllers/patient-document-controller");
-const cancersController = require("../controllers/cancers-controller");
-const conceptsController = require("../controllers/concepts-controller");
+const patientDocumentController = require('../controllers/patient-document-controller');
+const cancersController = require('../controllers/cancers-controller');
+const conceptsController = require('../controllers/concepts-controller');
 
 /**
  * @openapi
@@ -32,7 +32,7 @@ const conceptsController = require("../controllers/concepts-controller");
  *       404:
  *         description: Patient not found
  */
-router.get("/:patientId", patientDocumentController.getPatient);
+router.get('/:patientId', patientDocumentController.getPatient);
 
 /**
  * @openapi
@@ -76,7 +76,7 @@ router.get("/:patientId", patientDocumentController.getPatient);
  *       404:
  *         description: Patient not found
  */
-router.get("/:patientId/documents", patientDocumentController.getDocuments);
+router.get('/:patientId/documents', patientDocumentController.getDocuments);
 
 /**
  * @openapi
@@ -116,7 +116,7 @@ router.get("/:patientId/documents", patientDocumentController.getDocuments);
  *       500:
  *         description: Internal server error
  */
-router.get("/:patientId/documents/episodes", patientDocumentController.getDocumentEpisodeCounts);
+router.get('/:patientId/documents/episodes', patientDocumentController.getDocumentEpisodeCounts);
 
 /**
  * @openapi
@@ -146,7 +146,7 @@ router.get("/:patientId/documents/episodes", patientDocumentController.getDocume
  *       500:
  *         description: Internal server error
  */
-router.get("/:patientId/summary", patientDocumentController.getPatientSummary);
+router.get('/:patientId/summary', patientDocumentController.getPatientSummary);
 
 /**
  * @openapi
@@ -176,7 +176,7 @@ router.get("/:patientId/summary", patientDocumentController.getPatientSummary);
  *       500:
  *         description: Internal server error
  */
-router.get("/:patientId/profile", patientDocumentController.getPatientProfile);
+router.get('/:patientId/profile', patientDocumentController.getPatientProfile);
 
 /**
  * @openapi
@@ -206,7 +206,7 @@ router.get("/:patientId/profile", patientDocumentController.getPatientProfile);
  *       500:
  *         description: Internal server error
  */
-router.get("/:patientId/cancers", cancersController.getPatientCancersFile);
+router.get('/:patientId/cancers', cancersController.getPatientCancersFile);
 
 /**
  * @openapi
@@ -236,6 +236,6 @@ router.get("/:patientId/cancers", cancersController.getPatientCancersFile);
  *       500:
  *         description: Internal server error
  */
-router.get("/:patientId/concepts", conceptsController.getPatientConceptsFile);
+router.get('/:patientId/concepts', conceptsController.getPatientConceptsFile);
 
 module.exports = router;

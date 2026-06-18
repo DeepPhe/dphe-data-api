@@ -18,7 +18,7 @@ describe('POST /deepphe/filter/count', () => {
 
     const [{ data: raceRows }, { data: genderRows }] = await Promise.all([
       axios.get(`${baseUrl}/omop/instances?attribute=RACE`),
-      axios.get(`${baseUrl}/omop/instances?attribute=GENDER`)
+      axios.get(`${baseUrl}/omop/instances?attribute=GENDER`),
     ]);
     raceValues = raceRows.map((row) => row.race).filter(Boolean);
     genderValues = genderRows.map((row) => row.gender).filter(Boolean);
@@ -42,9 +42,7 @@ describe('POST /deepphe/filter/count', () => {
 
   test('returns count, patient IDs, and timing for a single filter', async () => {
     const { data } = await axios.post(`${baseUrl}/deepphe/filter/count`, {
-      filters: [
-        { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }
-      ]
+      filters: [{ type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }],
     });
 
     expect(data.count).toBeGreaterThanOrEqual(0);
@@ -53,18 +51,15 @@ describe('POST /deepphe/filter/count', () => {
   });
 
   test('includes patient IDs when explicitly requested', async () => {
-    const { data } = await axios.post(
-      `${baseUrl}/deepphe/filter/count?includePatientIds=true`,
-      {
-        filters: [
-          {
-            type: 'omop',
-            class: 'GENDER',
-            instances: genderValues.slice(0, 1)
-          }
-        ]
-      }
-    );
+    const { data } = await axios.post(`${baseUrl}/deepphe/filter/count?includePatientIds=true`, {
+      filters: [
+        {
+          type: 'omop',
+          class: 'GENDER',
+          instances: genderValues.slice(0, 1),
+        },
+      ],
+    });
 
     expect(data.patient_ids).toHaveLength(data.count);
     expect(data.timing.resolveMs).toBeGreaterThan(0);
@@ -73,10 +68,10 @@ describe('POST /deepphe/filter/count', () => {
   test('intersects multiple filters', async () => {
     const filters = [
       { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) },
-      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) }
+      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) },
     ];
     const { data } = await axios.post(`${baseUrl}/deepphe/filter/count`, {
-      filters
+      filters,
     });
 
     expect(data.count).toBeGreaterThanOrEqual(0);
@@ -89,14 +84,14 @@ describe('POST /deepphe/filter/count', () => {
   test('handles 50 filters in under two seconds', async () => {
     const pool = [
       { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) },
-      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) }
+      { type: 'omop', class: 'GENDER', instances: genderValues.slice(0, 1) },
     ];
     const filters = Array.from({ length: 50 }, (_, index) => {
       return pool[index % pool.length];
     });
 
     const { data } = await axios.post(`${baseUrl}/deepphe/filter/count`, {
-      filters
+      filters,
     });
 
     expect(data.count).toBeGreaterThanOrEqual(0);
@@ -106,31 +101,18 @@ describe('POST /deepphe/filter/count', () => {
   test.each([
     ['empty filters', { filters: [] }],
     ['missing filters', {}],
-    [
-      'invalid filter type',
-      { filters: [{ type: 'bogus', class: 'X', instances: ['Y'] }] }
-    ],
-    [
-      'missing instances',
-      { filters: [{ type: 'omop', class: 'RACE' }] }
-    ]
+    ['invalid filter type', { filters: [{ type: 'bogus', class: 'X', instances: ['Y'] }] }],
+    ['missing instances', { filters: [{ type: 'omop', class: 'RACE' }] }],
   ])('returns 400 for %s', async (description, payload) => {
-    await expect(
-      axios.post(`${baseUrl}/deepphe/filter/count`, payload)
-    ).rejects.toMatchObject({
-      response: { status: 400 }
+    await expect(axios.post(`${baseUrl}/deepphe/filter/count`, payload)).rejects.toMatchObject({
+      response: { status: 400 },
     });
   });
 
   test('can disable automatic patient ID inclusion', async () => {
-    const { data } = await axios.post(
-      `${baseUrl}/deepphe/filter/count?autoIncludeThreshold=0`,
-      {
-        filters: [
-          { type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }
-        ]
-      }
-    );
+    const { data } = await axios.post(`${baseUrl}/deepphe/filter/count?autoIncludeThreshold=0`, {
+      filters: [{ type: 'omop', class: 'RACE', instances: raceValues.slice(0, 2) }],
+    });
 
     expect(data.count).toBeGreaterThanOrEqual(0);
     expect(data.patient_ids).toEqual([]);

@@ -33,8 +33,6 @@ describe('SQLiteClient attribute groups', () => {
   });
 
   test('returns an empty array for an unknown group', async () => {
-    await expect(
-      db.getAttributesForGroup('non-existent-attribute-group')
-    ).resolves.toEqual([]);
+    await expect(db.getAttributesForGroup('non-existent-attribute-group')).resolves.toEqual([]);
   });
 });

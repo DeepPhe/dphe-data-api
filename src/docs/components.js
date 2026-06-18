@@ -30,8 +30,8 @@ module.exports = {
       properties: {
         id: { type: 'integer', example: 1 },
         title: { type: 'string', example: 'learn swagger' },
-        done: { type: 'boolean', example: false }
-      }
-    }
-  }
+        done: { type: 'boolean', example: false },
+      },
+    },
+  },
 };

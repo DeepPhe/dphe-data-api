@@ -4,11 +4,11 @@ const mockDb = {
   open: jest.fn(),
   getOmopClasses: jest.fn(),
   getOmopInstances: jest.fn(),
-  getOmopInstancesForPatient: jest.fn()
+  getOmopInstancesForPatient: jest.fn(),
 };
 
 jest.mock('../../../src/db/sqlite-client', () => ({
-  getInstance: jest.fn(() => mockDb)
+  getInstance: jest.fn(() => mockDb),
 }));
 
 const omopController = require('../../../src/controllers/omop-controller');
@@ -38,7 +38,7 @@ describe('OMOP controller', () => {
 
     expect(result).toEqual({
       status: 500,
-      body: { error: 'Internal server error' }
+      body: { error: 'Internal server error' },
     });
     errorSpy.mockRestore();
   });
@@ -46,7 +46,7 @@ describe('OMOP controller', () => {
   test('requires an attribute query parameter for instances', async () => {
     const result = await invokeController(omopController.getOmopInstances, {
       query: {},
-      path: '/instances'
+      path: '/instances',
     });
 
     expect(result.status).toBe(400);
@@ -56,7 +56,7 @@ describe('OMOP controller', () => {
   test('rejects invalid attributes before opening the database', async () => {
     const result = await invokeController(omopController.getOmopInstances, {
       query: { attribute: 'invalid' },
-      path: '/instances'
+      path: '/instances',
     });
 
     expect(result.status).toBe(400);
@@ -66,20 +66,17 @@ describe('OMOP controller', () => {
 
   test.each([
     ['/instances', false],
-    ['/instances/patients', true]
+    ['/instances/patients', true],
   ])('passes patient ID mode for %s', async (path, includePatientIds) => {
     const rows = [{ race: 'white' }];
     mockDb.getOmopInstances.mockResolvedValue(rows);
 
     const result = await invokeController(omopController.getOmopInstances, {
       query: { attribute: 'race' },
-      path
+      path,
     });
 
-    expect(mockDb.getOmopInstances).toHaveBeenCalledWith(
-      'RACE',
-      includePatientIds
-    );
+    expect(mockDb.getOmopInstances).toHaveBeenCalledWith('RACE', includePatientIds);
     expect(result).toEqual({ status: 200, body: rows });
   });
 
@@ -88,12 +85,12 @@ describe('OMOP controller', () => {
 
     const result = await invokeController(omopController.getOmopInstances, {
       query: { attribute: 'RACE' },
-      path: '/instances'
+      path: '/instances',
     });
 
     expect(result).toEqual({
       status: 404,
-      body: { error: 'No OMOP entries found for this class' }
+      body: { error: 'No OMOP entries found for this class' },
     });
   });
 
@@ -103,7 +100,7 @@ describe('OMOP controller', () => {
 
     const result = await invokeController(omopController.getOmopAttribute, {
       params: { personid: 'ignored', attribute: 'gender' },
-      path: '/ignored/gender/patients'
+      path: '/ignored/gender/patients',
     });
 
     expect(mockDb.getOmopInstances).toHaveBeenCalledWith('GENDER', true);
@@ -111,23 +108,17 @@ describe('OMOP controller', () => {
   });
 
   test.each([
-    [
-      { params: {}, query: { attribute: 'RACE' }, path: '/instances/patient/' },
-      'patientId'
-    ],
+    [{ params: {}, query: { attribute: 'RACE' }, path: '/instances/patient/' }, 'patientId'],
     [
       {
         params: { patientId: 'patient-1' },
         query: {},
-        path: '/instances/patient/patient-1'
+        path: '/instances/patient/patient-1',
       },
-      'attribute'
-    ]
+      'attribute',
+    ],
   ])('requires patient endpoint parameter %s', async (req, parameter) => {
-    const result = await invokeController(
-      omopController.getOmopInstancesForPatient,
-      req
-    );
+    const result = await invokeController(omopController.getOmopInstancesForPatient, req);
 
     expect(result.status).toBe(400);
     expect(result.body.error).toBe(`Missing required parameter: ${parameter}`);
@@ -137,38 +128,28 @@ describe('OMOP controller', () => {
     const rows = [{ ethnicity: 'not hispanic' }];
     mockDb.getOmopInstancesForPatient.mockResolvedValue(rows);
 
-    const result = await invokeController(
-      omopController.getOmopInstancesForPatient,
-      {
-        params: { patientId: 'patient-1' },
-        query: { attribute: 'ethnicity' },
-        path: '/instances/patient/patient-1/patients'
-      }
-    );
+    const result = await invokeController(omopController.getOmopInstancesForPatient, {
+      params: { patientId: 'patient-1' },
+      query: { attribute: 'ethnicity' },
+      path: '/instances/patient/patient-1/patients',
+    });
 
-    expect(mockDb.getOmopInstancesForPatient).toHaveBeenCalledWith(
-      'ETHNICITY',
-      'patient-1',
-      true
-    );
+    expect(mockDb.getOmopInstancesForPatient).toHaveBeenCalledWith('ETHNICITY', 'patient-1', true);
     expect(result).toEqual({ status: 200, body: rows });
   });
 
   test('returns 404 when no patient-specific instances match', async () => {
     mockDb.getOmopInstancesForPatient.mockResolvedValue([]);
 
-    const result = await invokeController(
-      omopController.getOmopInstancesForPatient,
-      {
-        params: { patientId: 'patient-1' },
-        query: { attribute: 'RACE' },
-        path: '/instances/patient/patient-1'
-      }
-    );
+    const result = await invokeController(omopController.getOmopInstancesForPatient, {
+      params: { patientId: 'patient-1' },
+      query: { attribute: 'RACE' },
+      path: '/instances/patient/patient-1',
+    });
 
     expect(result).toEqual({
       status: 404,
-      body: { error: 'No OMOP entries found for this class and patient' }
+      body: { error: 'No OMOP entries found for this class and patient' },
     });
   });
 
@@ -178,7 +159,7 @@ describe('OMOP controller', () => {
 
     const result = await invokeController(omopController.getOmopInstances, {
       query: { attribute: 'RACE' },
-      path: '/instances'
+      path: '/instances',
     });
 
     expect(result.status).toBe(500);

@@ -10,7 +10,7 @@ describe('getCancers', () => {
 
   test('returns cancers for the configured patient', async () => {
     const { body, status } = await invokeController(getCancers, {
-      query: { patientId }
+      query: { patientId },
     });
 
     expect(status).toBe(200);
@@ -50,7 +50,7 @@ describe('getCancers', () => {
 
   test('returns 404 for an unknown patient', async () => {
     const { body, status } = await invokeController(getCancers, {
-      query: { patientId: 'NONEXISTENT_PATIENT_99999' }
+      query: { patientId: 'NONEXISTENT_PATIENT_99999' },
     });
 
     expect(status).toBe(404);

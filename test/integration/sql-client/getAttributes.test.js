@@ -15,7 +15,7 @@ describe('getAttributes', () => {
   test('throws when the database is closed', async () => {
     const closedDb = {
       isOpen: false,
-      getAttributes: db.getAttributes
+      getAttributes: db.getAttributes,
     };
 
     await expect(closedDb.getAttributes()).rejects.toThrow('Database is not open');

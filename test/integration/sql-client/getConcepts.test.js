@@ -10,7 +10,7 @@ describe('getConcepts', () => {
 
   test('returns concepts matching the expected shape', async () => {
     const { body, status } = await invokeController(getConcepts, {
-      query: { patientId }
+      query: { patientId },
     });
 
     expect(status).toBe(200);
@@ -54,7 +54,7 @@ describe('getConcepts', () => {
 
   test('returns 404 for an unknown patient', async () => {
     const { body, status } = await invokeController(getConcepts, {
-      query: { patientId: 'NONEXISTENT_PATIENT_99999' }
+      query: { patientId: 'NONEXISTENT_PATIENT_99999' },
     });
 
     expect(status).toBe(404);

@@ -99,7 +99,7 @@ describe('SQLiteClient.decodeBitmap', () => {
 
   test('should throw error for invalid source type', async () => {
     await expect(db.decodeBitmap(tempFilePath, 'invalid')).rejects.toThrow(
-      'Invalid sourceType. Must be "file", "buffer", "base64", or "blob"'
+      'Invalid sourceType. Must be "file", "buffer", "base64", or "blob"',
     );
   });
 });

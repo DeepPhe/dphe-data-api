@@ -45,7 +45,7 @@ exports.getFilteredPatientCount = async (req, res) => {
     // Validate the request body.
     if (!filters || !Array.isArray(filters) || filters.length === 0) {
       return res.status(400).json({
-        error: 'Missing required body parameter: filters (must be a non-empty array)'
+        error: 'Missing required body parameter: filters (must be a non-empty array)',
       });
     }
 
@@ -56,8 +56,7 @@ exports.getFilteredPatientCount = async (req, res) => {
       }
     }
 
-    const includePatientIds =
-      String(req.query.includePatientIds).toLowerCase() === 'true';
+    const includePatientIds = String(req.query.includePatientIds).toLowerCase() === 'true';
 
     // Auto-include patient IDs when result count is below this threshold.
     // Callers can override via ?autoIncludeThreshold=<n>  (0 disables).
@@ -68,7 +67,11 @@ exports.getFilteredPatientCount = async (req, res) => {
     const db = getInstance();
     await db.open();
 
-    const result = await db.getFilteredPatientCount(filters, includePatientIds, autoIncludeThreshold);
+    const result = await db.getFilteredPatientCount(
+      filters,
+      includePatientIds,
+      autoIncludeThreshold,
+    );
 
     return res.status(200).json(result);
   } catch (error) {
@@ -99,13 +102,13 @@ exports.getBatchFilteredPatientCount = async (req, res) => {
 
     if (!Array.isArray(queries) || queries.length === 0) {
       return res.status(400).json({
-        error: 'Missing required body parameter: queries (must be a non-empty array)'
+        error: 'Missing required body parameter: queries (must be a non-empty array)',
       });
     }
 
     if (queries.length > MAX_BATCH_SIZE) {
       return res.status(400).json({
-        error: `Batch size ${queries.length} exceeds maximum of ${MAX_BATCH_SIZE}`
+        error: `Batch size ${queries.length} exceeds maximum of ${MAX_BATCH_SIZE}`,
       });
     }
 
@@ -116,7 +119,7 @@ exports.getBatchFilteredPatientCount = async (req, res) => {
       }
       if (!Array.isArray(query.filters) || query.filters.length === 0) {
         return res.status(400).json({
-          error: `queries[${q}].filters must be a non-empty array`
+          error: `queries[${q}].filters must be a non-empty array`,
         });
       }
       for (let i = 0; i < query.filters.length; i++) {
@@ -137,19 +140,17 @@ exports.getBatchFilteredPatientCount = async (req, res) => {
           String(query.includePatientIds).toLowerCase() === 'true';
         const rawThreshold = query.autoIncludeThreshold;
         const autoIncludeThreshold =
-          rawThreshold !== undefined
-            ? Math.max(0, Number(rawThreshold) || 0)
-            : 20;
+          rawThreshold !== undefined ? Math.max(0, Number(rawThreshold) || 0) : 20;
         try {
           return await db.getFilteredPatientCount(
             query.filters,
             includePatientIds,
-            autoIncludeThreshold
+            autoIncludeThreshold,
           );
         } catch (err) {
           return { error: err.message || 'Query failed', count: 0, patient_ids: [] };
         }
-      })
+      }),
     );
 
     return res.status(200).json({ results });
@@ -177,27 +178,25 @@ exports.getPatientSummaries = async (req, res) => {
 
     if (!Array.isArray(patientIds) || patientIds.length === 0) {
       return res.status(400).json({
-        error: 'Missing required body parameter: patient_ids (must be a non-empty array)'
+        error: 'Missing required body parameter: patient_ids (must be a non-empty array)',
       });
     }
 
     const invalidTypes = patientIds.filter(
-      id => typeof id !== 'string' && typeof id !== 'number'
+      (id) => typeof id !== 'string' && typeof id !== 'number',
     );
 
     if (invalidTypes.length > 0) {
       return res.status(400).json({
-        error: 'patient_ids must contain only strings or numbers'
+        error: 'patient_ids must contain only strings or numbers',
       });
     }
 
-    const normalizedIds = patientIds
-      .map(id => String(id).trim())
-      .filter(Boolean);
+    const normalizedIds = patientIds.map((id) => String(id).trim()).filter(Boolean);
 
     if (normalizedIds.length === 0) {
       return res.status(400).json({
-        error: 'patient_ids must include at least one non-empty ID'
+        error: 'patient_ids must include at least one non-empty ID',
       });
     }
 

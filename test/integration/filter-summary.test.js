@@ -42,7 +42,7 @@ describe('POST /deepphe/filter/summary', () => {
     const response = await axios.post(
       endpoint,
       { patientIds: ['fake_patient1'] },
-      { validateStatus: () => true }
+      { validateStatus: () => true },
     );
 
     expect(response.status).toBe(400);
@@ -53,8 +53,9 @@ describe('POST /deepphe/filter/summary', () => {
 
   test('publishes patient_ids in the OpenAPI request schema', () => {
     const schema =
-      swaggerSpec.paths['/v1/deepphe-api/deepphe/filter/summary']
-        .post.requestBody.content['application/json'].schema;
+      swaggerSpec.paths['/v1/deepphe-api/deepphe/filter/summary'].post.requestBody.content[
+        'application/json'
+      ].schema;
 
     expect(schema.required).toEqual(['patient_ids']);
     expect(schema.properties.patient_ids).toBeDefined();
