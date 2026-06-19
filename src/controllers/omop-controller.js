@@ -119,25 +119,6 @@ exports.getOmopInstances = async (req, res) => {
 };
 
 /**
- * Get OMOP instances for a specific OMOP class
- * Returns an array of OMOP rows from one of the OMOP tables
- *
- * @param {string} req.params.attribute - OMOP class (AGE_AT_DX, ETHNICITY, GENDER, RACE, CANCER)
- * @param {string} req.path - Append /patients to include patient identifier arrays
- * @returns {Promise<Object[]>} OMOP class instances
- */
-exports.getOmopAttribute = async (req, res) => {
-  try {
-    const { attribute } = req.params;
-    const includePatientIds = /\/patients\/?$/.test(req.path);
-    return await respondWithOmopInstances(attribute, includePatientIds, res);
-  } catch (error) {
-    console.error('Error fetching OMOP attribute:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
-
-/**
  * Get OMOP instances for a specific class and patient
  * Returns only OMOP rows where the patient appears in the bitmap
  *

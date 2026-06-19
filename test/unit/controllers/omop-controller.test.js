@@ -94,19 +94,6 @@ describe('OMOP controller', () => {
     });
   });
 
-  test('supports the legacy attribute path with patient IDs', async () => {
-    const rows = [{ gender: 'female', patient_ids: ['patient-1'] }];
-    mockDb.getOmopInstances.mockResolvedValue(rows);
-
-    const result = await invokeController(omopController.getOmopAttribute, {
-      params: { personid: 'ignored', attribute: 'gender' },
-      path: '/ignored/gender/patients',
-    });
-
-    expect(mockDb.getOmopInstances).toHaveBeenCalledWith('GENDER', true);
-    expect(result).toEqual({ status: 200, body: rows });
-  });
-
   test.each([
     [{ params: {}, query: { attribute: 'RACE' }, path: '/instances/patient/' }, 'patientId'],
     [
