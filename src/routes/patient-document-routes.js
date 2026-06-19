@@ -120,66 +120,6 @@ router.get('/:patientId/documents/episodes', patientDocumentController.getDocume
 
 /**
  * @openapi
- * /v1/deepphe-api/deepphe/patient/{patientId}/summary:
- *   get:
- *     summary: Get parsed patient summary data
- *     description: Returns the parsed JSON payload from patient_summaries for a specific patient, including demographics and summary sections.
- *     tags: [DeepPhe]
- *     parameters:
- *       - in: path
- *         name: patientId
- *         schema:
- *           type: string
- *         required: true
- *         description: Patient ID
- *     responses:
- *       200:
- *         description: Parsed patient summary payload
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *       400:
- *         description: Missing patientId
- *       404:
- *         description: Summary not found for this patient
- *       500:
- *         description: Internal server error
- */
-router.get('/:patientId/summary', patientDocumentController.getPatientSummary);
-
-/**
- * @openapi
- * /v1/deepphe-api/deepphe/patient/{patientId}/profile:
- *   get:
- *     summary: Get consolidated patient profile data
- *     description: Returns a profile payload that merges demographics from patient summary, OMOP fallback values, and encounter dates derived from documents.
- *     tags: [DeepPhe]
- *     parameters:
- *       - in: path
- *         name: patientId
- *         schema:
- *           type: string
- *         required: true
- *         description: Patient ID
- *     responses:
- *       200:
- *         description: Consolidated patient profile payload
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *       400:
- *         description: Missing patientId
- *       404:
- *         description: Profile not found for this patient
- *       500:
- *         description: Internal server error
- */
-router.get('/:patientId/profile', patientDocumentController.getPatientProfile);
-
-/**
- * @openapi
  * /v1/deepphe-api/deepphe/patient/{patientId}/cancers:
  *   get:
  *     summary: Get the cancers file for a patient
