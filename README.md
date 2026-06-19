@@ -144,11 +144,6 @@ http://localhost:3000/docs
 - **`GET /v1/deepphe-api/deepphe/patient/{patientId}/concepts`**
     - Get raw parsed `{patientId}_Concepts.json` payload
 
-### Patient Concepts
-
-- `GET /v1/deepphe-api/deepphe/patient/concepts/` - Get all concepts for a patient
-- `GET /v1/deepphe-api/deepphe/patient/conceptRelations/` - Get concept relations for a patient
-
 ### Group Data
 
 #### Attributes
