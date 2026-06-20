@@ -1,6 +1,6 @@
 # AGENTS.md — Coding Agent Guidelines for dphe-data-api
 
-This file provides instructions and conventions for AI coding agents (e.g. GitHub Copilot, Cursor, Claude) working
+This file provides instructions and conventions for AI coding agents working
 inside the `dphe-data-api` codebase.
 
 ---
