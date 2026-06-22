@@ -1,7 +1,7 @@
 ![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen?logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
-![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/DeepPhe/dphe-data-api)
 ![GitHub last commit](https://img.shields.io/github/last-commit/DeepPhe/dphe-data-api)
 ![GitHub issues](https://img.shields.io/github/issues/DeepPhe/dphe-data-api)
@@ -317,3 +317,10 @@ For issues and questions, please open an issue in the GitHub repository.
 
 Type definitions are available in `src/types/` for all data structures including DocumentXn, Patient, Cancer, Concept,
 etc.
+
+## License
+
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE.md](LICENSE.md) for
+the full text and [NOTICE.md](NOTICE.md) for attribution.
+
+Copyright 2014–2026 University of Pittsburgh and Boston Children's Hospital.
