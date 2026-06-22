@@ -1,5 +1,5 @@
 const fs = require('fs');
-const roaring = require('roaring');
+const roaring = require('roaring-wasm');
 const { assertDatabaseOpen } = require('./sqlite-operations');
 
 const BASE64_PATTERN = /^[A-Za-z0-9+/=]+$/;
@@ -115,7 +115,10 @@ class SQLiteBitmapService {
       }
 
       const bitmap = await this.client.decodeBitmap(bitmapSource.source, bitmapSource.sourceType);
-      if (bitmap.has(sequentialId)) {
+      const matched = bitmap.has(sequentialId);
+      // Free the WASM-backed bitmap before any further async work.
+      roaring.dispose(bitmap);
+      if (matched) {
         matchingRows.push(await this.client.processPatientBitmapRow(row, includePatientIds));
       }
     }
@@ -151,11 +154,14 @@ class SQLiteBitmapService {
     }
 
     let sequentialIds;
+    let bitmap = null;
     try {
-      const bitmap = await this.client.decodeBitmap(effectiveSource, effectiveSourceType);
+      bitmap = await this.client.decodeBitmap(effectiveSource, effectiveSourceType);
       sequentialIds = bitmap.toArray();
     } catch (error) {
       throw new Error(`Failed to decode bitmap: ${error.message}`);
+    } finally {
+      roaring.dispose(bitmap);
     }
 
     if (sequentialIds.length === 0) {

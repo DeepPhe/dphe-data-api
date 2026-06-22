@@ -1,17 +1,14 @@
-FROM node:20-bookworm-slim AS dependencies
+FROM node:24-bookworm-slim AS dependencies
 
 WORKDIR /app
 
-# Native dependencies such as sqlite3/roaring may compile during npm install.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
-
+# All dependencies are now pure-JS / WASM / built-in (node:sqlite, node:zlib),
+# so no native build toolchain is needed.
 COPY package*.json ./
 RUN npm ci --omit=dev \
     && npm cache clean --force
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 
 ENV NODE_ENV=production \
     PORT=3333 \

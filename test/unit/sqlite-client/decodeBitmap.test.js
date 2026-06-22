@@ -10,7 +10,8 @@ describe('SQLiteClient.decodeBitmap', () => {
   let tempDir;
 
   beforeAll(async () => {
-    // Open the database connection before all tests
+    // Open the database connection before all tests (this also initializes
+    // the roaring-wasm module used below).
     await db.open();
 
     // Create a temporary bitmap file for testing
@@ -18,7 +19,7 @@ describe('SQLiteClient.decodeBitmap', () => {
     tempFilePath = path.join(tempDir, 'test-bitmap.bin');
 
     // Create a simple bitmap with values [1, 2, 3, 100, 1000, 10000]
-    const roaring = require('roaring');
+    const roaring = require('roaring-wasm');
     const bitmap = new roaring.RoaringBitmap32();
     bitmap.add(1);
     bitmap.add(2);
@@ -27,9 +28,11 @@ describe('SQLiteClient.decodeBitmap', () => {
     bitmap.add(1000);
     bitmap.add(10000);
 
-    // Serialize and save to file
-    const buffer = bitmap.serialize(false);
+    // Serialize and save to file (croaring format, byte-compatible with the
+    // bitmaps stored in the database).
+    const buffer = Buffer.from(bitmap.serialize(false));
     fs.writeFileSync(tempFilePath, buffer);
+    bitmap.dispose();
   });
 
   afterAll(async () => {

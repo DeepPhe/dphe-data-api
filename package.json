@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "bin": "server.js",
   "scripts": {
     "start": "node server.js",
     "start:debug": "node --inspect server.js",
     "dev": "nodemon server.js",
     "generate-schemas": "node src/utils/schemaConverter.js",
+    "build:spec": "node scripts/generate-openapi.js",
+    "build": "npm run build:spec && pkg . --no-bytecode --public --public-packages \"*\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -18,19 +21,35 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "pkg": {
+    "targets": [
+      "node24-macos-arm64",
+      "node24-macos-x64",
+      "node24-linux-x64",
+      "node24-win-x64"
+    ],
+    "assets": [
+      "node_modules/roaring-wasm/index.wasm",
+      "node_modules/swagger-ui-dist/**/*",
+      "src/docs/openapi.generated.json"
+    ],
+    "outputPath": "dist"
+  },
   "dependencies": {
-    "@mongodb-js/zstd": "^7.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "json-schema-generator": "^2.0.6",
     "morgan": "^1.10.1",
-    "roaring": "^2.7.0",
-    "sqlite3": "^5.1.7",
+    "roaring-wasm": "^1.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@yao-pkg/pkg": "^6.20.0",
     "ajv": "^8.17.1",
     "axios": "^1.12.2",
     "jest": "^29.7.0",

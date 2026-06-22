@@ -1,7 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const zstd = require('@mongodb-js/zstd');
+const zlib = require('node:zlib');
 const { SQLiteClient } = require('../../../src/db/sqlite-client');
 const { run } = require('../../../src/db/sqlite-operations');
 
@@ -42,7 +42,7 @@ describe('SQLiteClient file store', () => {
   });
 
   test('reads zstd-compressed rows and supports raw reads', async () => {
-    const compressed = await zstd.compress(Buffer.from(JSON.stringify({ id: 'compressed' })));
+    const compressed = zlib.zstdCompressSync(Buffer.from(JSON.stringify({ id: 'compressed' })));
     await run(client, 'INSERT INTO files (filename, content, encoding) VALUES (?, ?, ?)', [
       'compressed.json',
       compressed,

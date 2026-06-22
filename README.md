@@ -1,4 +1,4 @@
-![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen?logo=node.js&logoColor=white)
+![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen?logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
 ![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)
@@ -13,9 +13,12 @@ clinical concepts. Built with Express.js and SQLite3.
 
 ## Prerequisites
 
-- Node.js (v18 or higher; the Docker image uses Node 20)
+- Node.js v24 or higher (the SQLite driver uses the built-in `node:sqlite` module)
 - npm or yarn
-- SQLite3 (installed automatically with dependencies)
+
+All runtime dependencies are pure-JS, WASM, or Node built-ins (`node:sqlite`, `node:zlib`),
+so there is no native build toolchain to install and the app can be packaged as a
+self-contained executable (see [Standalone executables](#standalone-executables-no-node-required)).
 
 ## Installation
 
@@ -121,6 +124,35 @@ PORT=4444 docker compose up --build
 ```
 
 See `DOCKER.md` for more Docker examples.
+
+## Standalone executables (no Node required)
+
+The app can be packaged into a single self-contained executable per platform using
+[`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg). End users do not need Node.js or Docker
+installed — only the database file.
+
+Build all targets (macOS arm64/x64, Linux x64, Windows x64) into `dist/`:
+
+```bash
+npm run build
+```
+
+This first regenerates the OpenAPI spec (`npm run build:spec`) so `/docs` works without the
+source tree, then produces the binaries. Run one, pointing it at a SQLite database:
+
+```bash
+./dist/dphe-data-api-macos-arm64 --db /path/to/deepphe.sqlite3
+# or via environment variable:
+DB_PATH=/path/to/deepphe.sqlite3 PORT=3333 ./dist/dphe-data-api-linux-x64
+```
+
+The database is **not** bundled into the binary; supply it with `--db <path>` or the
+`DB_PATH` environment variable. A relative path is resolved against the current working
+directory.
+
+> Note: `pkg` generates bytecode by running each target's base binary, which is not possible
+> for foreign CPU architectures. The build therefore uses `--no-bytecode`, which embeds the
+> JavaScript source in the binary instead.
 
 ## API Documentation
 
@@ -236,6 +268,8 @@ npm test -- src/db/sqlite-client.test.js
 | `npm run start:debug`      | Start the server with the Node.js inspector (port 9229)         |
 | `npm run dev`              | Start the server in development mode with auto-reload (nodemon) |
 | `npm run generate-schemas` | Generate TypeScript definitions from JSON schemas               |
+| `npm run build:spec`       | Generate the static OpenAPI spec for packaged binaries          |
+| `npm run build`            | Build standalone executables for all platforms into `dist/`     |
 | `npm test`                 | Run all tests                                                   |
 | `npm run test:watch`       | Run tests in watch mode                                         |
 | `npm run test:coverage`    | Run tests with coverage report                                  |

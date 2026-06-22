@@ -1,20 +1,15 @@
 // src/docs/swagger.js
-const swaggerJSDoc = require('swagger-jsdoc');
-const generatedComponents = require('./generated-components');
+let spec;
 
-const options = {
-  definition: {
-    openapi: '3.0.0',
-    info: { title: 'DeepPhe Data API', version: '1.0.0' },
-    tags: [{ name: 'DeepPhe', description: 'DeepPhe endpoints' }],
-    components: {
-      schemas: generatedComponents.schemas || generatedComponents,
-    },
-  },
-  apis: ['./src/routes/**/*.js'],
-  failOnErrors: true,
-};
-
-const spec = swaggerJSDoc(options);
+if (process.pkg) {
+  // In a packaged binary the route source files are not present on disk for
+  // swagger-jsdoc to scan, so use the spec generated at build time
+  // (scripts/generate-openapi.js).
+  spec = require('./openapi.generated.json');
+} else {
+  const swaggerJSDoc = require('swagger-jsdoc');
+  const options = require('./swagger-options');
+  spec = swaggerJSDoc(options);
+}
 
 module.exports = spec;

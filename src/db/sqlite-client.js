@@ -1,8 +1,8 @@
-const sqlite3 = require('sqlite3').verbose();
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
-const zstd = require('@mongodb-js/zstd');
-const roaring = require('roaring');
+const zlib = require('node:zlib');
+const roaring = require('roaring-wasm');
 const { DB_PATH } = require('../config/database');
 const { SQLiteBitmapService } = require('./sqlite-bitmap-service');
 const { SQLiteFileStore } = require('./sqlite-file-store');
@@ -52,27 +52,27 @@ class SQLiteClient {
    * @returns {Promise<void>}
    */
   async open() {
-    return new Promise((resolve, reject) => {
-      if (this.isOpen) {
-        return resolve();
-      }
+    if (this.isOpen) {
+      return;
+    }
 
-      // Ensure directory exists
-      const dir = path.dirname(this.dbPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+    // roaring-wasm loads its WASM module asynchronously. Initialize it before
+    // the connection is marked open so every bitmap operation downstream can
+    // run synchronously.
+    await roaring.roaringLibraryInitialize();
 
-      this.db = new sqlite3.Database(this.dbPath, (err) => {
-        if (err) {
-          console.error('Failed to open SQLite:', err);
-          return reject(err);
-        }
+    // Ensure directory exists
+    const dir = path.dirname(this.dbPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
 
-        this.isOpen = true;
-        resolve();
-      });
-    });
+    this.db = new DatabaseSync(this.dbPath);
+    // node:sqlite has no implicit busy handler (unlike the old native driver),
+    // so a concurrent writer would surface SQLITE_BUSY immediately. Wait a few
+    // seconds for the lock instead of failing the query.
+    this.db.exec('PRAGMA busy_timeout = 5000');
+    this.isOpen = true;
   }
 
   /**
@@ -80,20 +80,12 @@ class SQLiteClient {
    * @returns {Promise<void>}
    */
   async close() {
-    return new Promise((resolve, reject) => {
-      if (!this.isOpen || !this.db) {
-        return resolve();
-      }
+    if (!this.isOpen || !this.db) {
+      return;
+    }
 
-      this.db.close((err) => {
-        if (err) {
-          console.error('Failed to close SQLite:', err);
-          return reject(err);
-        }
-        this.isOpen = false;
-        resolve();
-      });
-    });
+    this.db.close();
+    this.isOpen = false;
   }
 
   /**
@@ -630,7 +622,7 @@ class SQLiteClient {
 
       let jsonText;
       try {
-        const decompressed = await zstd.decompress(compressedBuffer);
+        const decompressed = zlib.zstdDecompressSync(compressedBuffer);
         jsonText = decompressed.toString('utf8');
       } catch (decompressErr) {
         // Backward compatibility for rows that may already be raw JSON text.
@@ -782,83 +774,95 @@ class SQLiteClient {
     const bitmapStart = process.hrtime.bigint();
     const itemBitmaps = [];
     const itemCounts = [];
+    let resultBitmap = null;
 
-    for (const rows of filterRows) {
-      const bitmaps = [];
-      for (const row of rows) {
-        const bitmapSource = this.getPatientBitmapSource(row);
-        if (!bitmapSource) {
-          continue;
+    try {
+      for (const rows of filterRows) {
+        const bitmaps = [];
+        for (const row of rows) {
+          const bitmapSource = this.getPatientBitmapSource(row);
+          if (!bitmapSource) {
+            continue;
+          }
+
+          bitmaps.push(await this.decodeBitmap(bitmapSource.source, bitmapSource.sourceType));
         }
 
-        bitmaps.push(await this.decodeBitmap(bitmapSource.source, bitmapSource.sourceType));
-      }
-
-      // OR: patient in any selected instance for this filter item
-      let itemBitmap;
-      if (bitmaps.length === 0) {
-        itemBitmap = new roaring.RoaringBitmap32();
-      } else {
-        itemBitmap = bitmaps[0];
-        for (let i = 1; i < bitmaps.length; i++) {
-          itemBitmap.orInPlace(bitmaps[i]);
+        // OR: patient in any selected instance for this filter item
+        let itemBitmap;
+        if (bitmaps.length === 0) {
+          itemBitmap = new roaring.RoaringBitmap32();
+        } else {
+          itemBitmap = bitmaps[0];
+          for (let i = 1; i < bitmaps.length; i++) {
+            itemBitmap.orInPlace(bitmaps[i]);
+            // bitmaps[i] has been merged in; free its WASM memory now.
+            roaring.dispose(bitmaps[i]);
+          }
         }
+        itemBitmaps.push(itemBitmap);
+        itemCounts.push(itemBitmap.size);
       }
-      itemBitmaps.push(itemBitmap);
-      itemCounts.push(itemBitmap.size);
-    }
 
-    // AND: patient must match all filter items
-    let resultBitmap;
-    if (itemBitmaps.length === 0) {
-      resultBitmap = new roaring.RoaringBitmap32();
-    } else {
-      // Short-circuit when any item already matched zero patients
-      const emptyIdx = itemBitmaps.findIndex((b) => b.size === 0);
-      if (emptyIdx !== -1) {
+      // AND: patient must match all filter items
+      if (itemBitmaps.length === 0) {
         resultBitmap = new roaring.RoaringBitmap32();
       } else {
-        resultBitmap = itemBitmaps[0].clone();
-        for (let i = 1; i < itemBitmaps.length; i++) {
-          resultBitmap.andInPlace(itemBitmaps[i]);
-          if (resultBitmap.size === 0) break; // early exit
+        // Short-circuit when any item already matched zero patients
+        const emptyIdx = itemBitmaps.findIndex((b) => b.size === 0);
+        if (emptyIdx !== -1) {
+          resultBitmap = new roaring.RoaringBitmap32();
+        } else {
+          resultBitmap = itemBitmaps[0].clone();
+          for (let i = 1; i < itemBitmaps.length; i++) {
+            resultBitmap.andInPlace(itemBitmaps[i]);
+            if (resultBitmap.size === 0) break; // early exit
+          }
         }
       }
+
+      const bitmapEnd = process.hrtime.bigint();
+
+      // Phase 3: resolve sequential IDs to patient IDs.
+      // Auto-include patient IDs when the result count is small enough
+      // (below autoIncludeThreshold), even when not explicitly requested.
+      const shouldResolveIds =
+        resultBitmap.size > 0 &&
+        (includePatientIds ||
+          (autoIncludeThreshold > 0 && resultBitmap.size < autoIncludeThreshold));
+
+      const resolveStart = process.hrtime.bigint();
+      let patient_ids = [];
+
+      if (shouldResolveIds) {
+        const serialized = resultBitmap.serialize(false);
+        patient_ids = await this.patientBitmapToPatientIds(Buffer.from(serialized), 'buffer');
+      }
+
+      const resolveEnd = process.hrtime.bigint();
+
+      // Build the timing report.
+      const ms = (s, e) => Math.round(Number(e - s) / 1e4) / 100; // 2-decimal ms
+
+      return {
+        count: resultBitmap.size,
+        patient_ids,
+        timing: {
+          queryMs: ms(queryStart, queryEnd),
+          bitmapMs: ms(bitmapStart, bitmapEnd),
+          resolveMs: ms(resolveStart, resolveEnd),
+          totalMs: ms(totalStart, resolveEnd),
+          itemCounts, // per-filter-item patient counts (before AND)
+        },
+      };
+    } finally {
+      // RoaringBitmap32 instances hold WASM memory that is not garbage
+      // collected; release every bitmap allocated for this request.
+      for (const bitmap of itemBitmaps) {
+        roaring.dispose(bitmap);
+      }
+      roaring.dispose(resultBitmap);
     }
-
-    const bitmapEnd = process.hrtime.bigint();
-
-    // Phase 3: resolve sequential IDs to patient IDs.
-    // Auto-include patient IDs when the result count is small enough
-    // (below autoIncludeThreshold), even when not explicitly requested.
-    const shouldResolveIds =
-      resultBitmap.size > 0 &&
-      (includePatientIds || (autoIncludeThreshold > 0 && resultBitmap.size < autoIncludeThreshold));
-
-    const resolveStart = process.hrtime.bigint();
-    let patient_ids = [];
-
-    if (shouldResolveIds) {
-      const serialized = resultBitmap.serialize(false);
-      patient_ids = await this.patientBitmapToPatientIds(Buffer.from(serialized), 'buffer');
-    }
-
-    const resolveEnd = process.hrtime.bigint();
-
-    // Build the timing report.
-    const ms = (s, e) => Math.round(Number(e - s) / 1e4) / 100; // 2-decimal ms
-
-    return {
-      count: resultBitmap.size,
-      patient_ids,
-      timing: {
-        queryMs: ms(queryStart, queryEnd),
-        bitmapMs: ms(bitmapStart, bitmapEnd),
-        resolveMs: ms(resolveStart, resolveEnd),
-        totalMs: ms(totalStart, resolveEnd),
-        itemCounts, // per-filter-item patient counts (before AND)
-      },
-    };
   }
 
   /**

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const roaring = require('roaring');
+const roaring = require('roaring-wasm');
 const { db } = require('../../src/db');
 
 describe('SQLiteClient.patientBitmapToPatientIds', () => {
@@ -18,19 +18,9 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
   });
 
   test('maps sequential IDs and marks unknown IDs as missing', async () => {
-    const mappings = await new Promise((resolve, reject) => {
-      db.db.all(
-        'SELECT sequential_id, patient_id FROM patient_id_mapping LIMIT 5',
-        [],
-        (error, rows) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve(rows);
-        },
-      );
-    });
+    const mappings = await db.getAllRows(
+      'SELECT sequential_id, patient_id FROM patient_id_mapping LIMIT 5',
+    );
     expect(mappings.length).toBeGreaterThan(0);
 
     const bitmap = new roaring.RoaringBitmap32();
@@ -38,7 +28,7 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
     bitmap.add(999999);
 
     const bitmapPath = path.join(tempDir, 'patient-bitmap.bin');
-    fs.writeFileSync(bitmapPath, bitmap.serialize(false));
+    fs.writeFileSync(bitmapPath, Buffer.from(bitmap.serialize(false)));
 
     const result = await db.patientBitmapToPatientIds(bitmapPath, 'file');
     const expectedById = new Map(
@@ -50,6 +40,7 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
     const expected = bitmap
       .toArray()
       .map((sequentialId) => expectedById.get(sequentialId) || 'missing');
+    bitmap.dispose();
 
     expect(result).toEqual(expected);
   });
@@ -57,7 +48,8 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
   test('returns an empty array for an empty bitmap', async () => {
     const bitmapPath = path.join(tempDir, 'empty-bitmap.bin');
     const bitmap = new roaring.RoaringBitmap32();
-    fs.writeFileSync(bitmapPath, bitmap.serialize(false));
+    fs.writeFileSync(bitmapPath, Buffer.from(bitmap.serialize(false)));
+    bitmap.dispose();
 
     await expect(db.patientBitmapToPatientIds(bitmapPath, 'file')).resolves.toEqual([]);
   });

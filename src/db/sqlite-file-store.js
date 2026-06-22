@@ -1,4 +1,4 @@
-const zstd = require('@mongodb-js/zstd');
+const zlib = require('node:zlib');
 const { all, assertDatabaseOpen, get, run } = require('./sqlite-operations');
 
 function normalizeString(value) {
@@ -10,7 +10,7 @@ async function decodeContent(content, encoding) {
     return content;
   }
 
-  const decompressed = await zstd.decompress(Buffer.from(content));
+  const decompressed = zlib.zstdDecompressSync(Buffer.from(content));
   return decompressed.toString('utf8');
 }
 

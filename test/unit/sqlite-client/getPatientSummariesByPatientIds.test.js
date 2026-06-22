@@ -8,24 +8,15 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
   beforeAll(async () => {
     await db.open();
 
-    const sample = await new Promise((resolve, reject) => {
-      db.db.get(
-        `SELECT
+    const [sample] = await db.getAllRows(
+      `SELECT
            ps.patient_id AS summary_patient_id,
            pim.patient_id AS patient_id
          FROM patient_summaries ps
          LEFT JOIN patient_id_mapping pim
            ON pim.sequential_id = ps.patient_id
          LIMIT 1`,
-        [],
-        (err, row) => {
-          if (err) {
-            return reject(err);
-          }
-          resolve(row);
-        },
-      );
-    });
+    );
 
     if (sample) {
       knownSummaryPatientId = String(sample.summary_patient_id);

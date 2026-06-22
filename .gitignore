@@ -185,3 +185,6 @@ out/
 # Backups
 *.bak
 *.backup
+
+# Generated OpenAPI spec (rebuilt by `npm run build:spec`)
+src/docs/openapi.generated.json
