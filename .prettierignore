@@ -1,6 +1,5 @@
 node_modules/
 coverage/
-.ai/
 dist/
 build/
 package-lock.json
