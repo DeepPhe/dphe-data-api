@@ -320,7 +320,7 @@ etc.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 — see [LICENSE.md](LICENSE.md) for
-the full text and [NOTICE.md](NOTICE.md) for attribution.
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) for
+the full text and [NOTICE](NOTICE) for attribution.
 
 Copyright 2014–2026 University of Pittsburgh and Boston Children's Hospital.
