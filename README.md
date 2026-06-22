@@ -2,9 +2,9 @@
 ![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
 ![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)
-![GitHub package.json version](https://img.shields.io/github/package-json/v/DeepPhe/dphe-data-webservice)
-![GitHub last commit](https://img.shields.io/github/last-commit/DeepPhe/dphe-data-webservice)
-![GitHub issues](https://img.shields.io/github/issues/DeepPhe/dphe-data-webservice)
+![GitHub package.json version](https://img.shields.io/github/package-json/v/DeepPhe/dphe-data-api)
+![GitHub last commit](https://img.shields.io/github/last-commit/DeepPhe/dphe-data-api)
+![GitHub issues](https://img.shields.io/github/issues/DeepPhe/dphe-data-api)
 
 # DeepPhe Data API
 
