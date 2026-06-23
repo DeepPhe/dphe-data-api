@@ -1,7 +1,7 @@
 ![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen?logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/DeepPhe/dphe-data-api)
 ![GitHub last commit](https://img.shields.io/github/last-commit/DeepPhe/dphe-data-api)
 ![GitHub issues](https://img.shields.io/github/issues/DeepPhe/dphe-data-api)
@@ -44,7 +44,7 @@ cp .env.example .env
 4. Configure your environment variables in `.env`:
 
 ```bash
-PORT=3000
+PORT=3333
 DB_PATH=./test/resources/deepphe.sqlite3
 TEST_PATIENT_ID=fake_patient1
 ```
@@ -97,7 +97,7 @@ npm run start:debug
 
 This starts the server with the Node.js inspector enabled on port 9229.
 
-The server will start on `http://localhost:3000` (or the port specified in your environment variables).
+The server will start on `http://localhost:3333` (or the port specified in your environment variables).
 
 ### Docker Compose
 
@@ -154,12 +154,26 @@ directory.
 > for foreign CPU architectures. The build therefore uses `--no-bytecode`, which embeds the
 > JavaScript source in the binary instead.
 
+### Publishing release assets
+
+Pushes to `main` run `.github/workflows/publish-dist-release.yml`. The workflow installs dependencies, runs
+`npm run build`, creates or updates a release in
+[`DeepPhe/DeepPhe-Dist`](https://github.com/DeepPhe/DeepPhe-Dist/releases), and uploads every file in `dist/` as a
+release asset.
+
+The default release tag is `dphe-data-api-v<package.json version>`, for example `dphe-data-api-v1.0.0`. Re-running the
+workflow for the same version replaces matching assets on that release.
+
+Configure the source repository with a `DEEPHE_DIST_RELEASE_TOKEN` secret. The token must be able to create releases and
+upload assets in `DeepPhe/DeepPhe-Dist`; a fine-grained personal access token needs repository access to that repo and
+`Contents` read/write permission.
+
 ## API Documentation
 
 Once the server is running, access the interactive Swagger documentation at:
 
 ```
-http://localhost:3000/docs
+http://localhost:3333/docs
 ```
 
 ## API Endpoints
@@ -209,37 +223,37 @@ http://localhost:3000/docs
 ### Get Patient Documents (Text Excluded by Default)
 
 ```bash
-curl http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789
+curl http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789
 ```
 
 ### Get All Documents for a Patient
 
 ```bash
-curl http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents
+curl http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789/documents
 ```
 
 ### Get Specific Documents by ID
 
 ```bash
-curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100,123456789_D_101"
+curl "http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100,123456789_D_101"
 ```
 
 ### Get Documents Without Text Content
 
 ```bash
-curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?excludeProperties=text"
+curl "http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789/documents?excludeProperties=text"
 ```
 
 ### Get Documents Excluding Multiple Properties
 
 ```bash
-curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?excludeProperties=text,mentions,mentionRelations"
+curl "http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789/documents?excludeProperties=text,mentions,mentionRelations"
 ```
 
 ### Combine Filters
 
 ```bash
-curl "http://localhost:3000/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100&excludeProperties=text,mentions"
+curl "http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789/documents?documentIds=123456789_D_100&excludeProperties=text,mentions"
 ```
 
 ## Testing
@@ -278,7 +292,7 @@ npm test -- src/db/sqlite-client.test.js
 
 ### Environment Variables
 
-- `PORT` - Server port (default: 3000)
+- `PORT` - Server port (default: 3333)
 - `DB_PATH` - Path to SQLite database file
 - `TEST_PATIENT_ID` - Patient ID used in tests; the bundled fixture uses fake IDs
 
@@ -320,7 +334,7 @@ etc.
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0 — see [LICENSE.md](LICENSE.md) for
-the full text and [NOTICE.md](NOTICE.md) for attribution.
+This project is licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) for
+the full text and [NOTICE](NOTICE) for attribution.
 
 Copyright 2014–2026 University of Pittsburgh and Boston Children's Hospital.
