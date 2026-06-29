@@ -21,6 +21,21 @@ DB_PATH=/app/test/resources/deepphe.sqlite3
 
 The SQLite client opens the database read/write, so any externally mounted database directory must be writable.
 
+## Serve The 500-Patient Fixture
+
+The image also bundles a larger fixture at `/app/test/resources/deepphe-500.sqlite3`.
+To serve it instead of the default, point `DB_PATH` at it. For example, in `.env`:
+
+```bash
+DB_PATH=./test/resources/deepphe-500.sqlite3
+```
+
+Or for a single run without editing `.env`:
+
+```bash
+DB_PATH=./test/resources/deepphe-500.sqlite3 docker compose up --build
+```
+
 ## `.env` Overrides Defaults
 
 Compose automatically reads `.env` and uses those values to fill `docker-compose.yml`. Values in `.env` override the Docker defaults in Compose.

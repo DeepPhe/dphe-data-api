@@ -27,6 +27,7 @@ logs
 /test/*
 !/test/resources
 !/test/resources/deepphe.sqlite3
+!/test/resources/deepphe-500.sqlite3
 /docs
 /tmp
 /temp

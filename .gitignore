@@ -180,6 +180,9 @@ out/
 *.sqlite
 *.sqlite3
 *.db
+# Transient SQLite WAL-mode sidecar files (regenerated at runtime)
+*.sqlite3-shm
+*.sqlite3-wal
 !test/resources/deepphe.sqlite3
 
 # Backups
