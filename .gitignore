@@ -184,6 +184,7 @@ out/
 *.sqlite3-shm
 *.sqlite3-wal
 !test/resources/deepphe.sqlite3
+!test/resources/deepphe-500.sqlite3
 
 # Backups
 *.bak
