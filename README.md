@@ -161,8 +161,8 @@ Pushes to `main` run `.github/workflows/publish-dist-release.yml`. The workflow 
 [`DeepPhe/DeepPhe-Dist`](https://github.com/DeepPhe/DeepPhe-Dist/releases), and uploads every file in `dist/` as a
 release asset.
 
-The default release tag is `dphe-data-api-v<package.json version>`, for example `dphe-data-api-v1.0.0`. Re-running the
-workflow for the same version replaces matching assets on that release.
+The release tag is `dphe-data-api-<DPHE_VERSION>`, for example `dphe-data-api-7.1`. Re-running the
+workflow for the same DeepPhe version replaces matching assets on that release.
 
 Configure the source repository with a `DEEPHE_DIST_RELEASE_TOKEN` secret. The token must be able to create releases and
 upload assets in `DeepPhe/DeepPhe-Dist`; a fine-grained personal access token needs repository access to that repo and
