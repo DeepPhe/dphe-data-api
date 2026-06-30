@@ -1,6 +1,7 @@
-name: Publish distribution release assets
+name: Publish signed distribution release assets
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,19 +10,99 @@ env:
   DIST_REPO: DeepPhe/DeepPhe-Dist
   PACKAGE_NAME: dphe-data-api
 
+permissions:
+  contents: read
+
 jobs:
-  build-and-publish:
-    name: Build and publish assets
-    runs-on: ubuntu-latest
-    environment: DPHE 7.1
-    env:
-      DPHE_VERSION: ${{ vars.DPHE_VERSION }}
-    permissions:
-      contents: read
+  build:
+    name: ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: node24-linux-x64
+            artifact: dphe-data-api-linux-x64
+            artifact-file: dist/dphe-data-api-linux-x64
+          - os: windows-2022
+            target: node24-win-x64
+            artifact: dphe-data-api-win-x64
+            artifact-file: dist/dphe-data-api-win-x64.exe
+          - os: macos-15
+            target: node24-macos-arm64
+            artifact: dphe-data-api-macos-arm64
+            artifact-file: dist/dphe-data-api-macos-arm64
+          - os: macos-15-intel
+            target: node24-macos-x64
+            artifact: dphe-data-api-macos-x64
+            artifact-file: dist/dphe-data-api-macos-x64
 
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+
+      - name: Validate Windows signing secrets
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PFX_BASE64)) {
+            throw "Missing WINDOWS_CERTIFICATE_PFX_BASE64 repository secret."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) {
+            throw "Missing WINDOWS_CERTIFICATE_PASSWORD repository secret."
+          }
+
+      - name: Import macOS Developer ID certificate
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for required_variable in MACOS_CERTIFICATE_P12_BASE64 MACOS_CERTIFICATE_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+          do
+            if [ -z "${!required_variable}" ]; then
+              echo "::error title=Missing signing secret::Add the ${required_variable} repository secret."
+              exit 1
+            fi
+          done
+
+          certificate_path="$RUNNER_TEMP/deepphe-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/deepphe-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          echo "::add-mask::${keychain_password}"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | openssl base64 -d -A -out "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+
+          signing_identity="$(
+            security find-identity -v -p codesigning "$keychain_path" |
+              sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' |
+              head -n 1
+          )"
+          if [ -z "$signing_identity" ]; then
+            echo "::error title=Developer ID identity not found::The PKCS#12 file does not contain a usable Developer ID Application identity."
+            exit 1
+          fi
+
+          echo "Using signing identity: ${signing_identity}"
+          {
+            echo "MACOS_SIGNING_IDENTITY=${signing_identity}"
+            echo "MACOS_SIGNING_CERTIFICATE_PATH=${certificate_path}"
+            echo "MACOS_SIGNING_KEYCHAIN_PATH=${keychain_path}"
+          } >> "$GITHUB_ENV"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -32,8 +113,175 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build standalone executables
-        run: npm run build
+      - name: Generate OpenAPI specification
+        run: npm run build:spec
+
+      - name: Build standalone executable
+        shell: bash
+        run: |
+          mkdir -p dist
+          npx --no-install pkg . --targets "${{ matrix.target }}" --output "${{ matrix.artifact-file }}" --no-bytecode --public --public-packages "*"
+
+      - name: Authenticode-sign Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP "deepphe-authenticode.pfx"
+          $artifactPath = "${{ matrix.artifact-file }}"
+          $signingCertificate = $null
+
+          try {
+            [IO.File]::WriteAllBytes(
+              $certificatePath,
+              [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64)
+            )
+
+            $securePassword = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+            $importedCertificates = @(
+              Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $securePassword
+            )
+
+            $codeSigningOid = "1.3.6.1.5.5.7.3.3"
+            $signingCertificate = $importedCertificates |
+              Where-Object {
+                $ekuOids = @($_.EnhancedKeyUsageList | ForEach-Object { $_.ObjectId.Value })
+                $_.HasPrivateKey -and ($ekuOids.Count -eq 0 -or $codeSigningOid -in $ekuOids)
+              } |
+              Select-Object -First 1
+
+            if (-not $signingCertificate) {
+              throw "The PFX does not contain a certificate with a private key and the Code Signing EKU ($codeSigningOid)."
+            }
+            if ($signingCertificate.NotBefore -gt (Get-Date)) {
+              throw "The Windows code-signing certificate is not valid until $($signingCertificate.NotBefore.ToUniversalTime().ToString('u'))."
+            }
+            if ($signingCertificate.NotAfter -lt (Get-Date)) {
+              throw "The Windows code-signing certificate expired at $($signingCertificate.NotAfter.ToUniversalTime().ToString('u'))."
+            }
+
+            Write-Host "Certificate subject: $($signingCertificate.Subject)"
+            Write-Host "Certificate issuer: $($signingCertificate.Issuer)"
+            Write-Host "Certificate validity: $($signingCertificate.NotBefore.ToUniversalTime().ToString('u')) through $($signingCertificate.NotAfter.ToUniversalTime().ToString('u'))"
+            Write-Host "Certificate thumbprint: $($signingCertificate.Thumbprint)"
+
+            $signTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+              Sort-Object FullName -Descending |
+              Select-Object -First 1
+            if (-not $signTool) {
+              throw "signtool.exe was not found on the runner."
+            }
+
+            $signArguments = @(
+              "sign",
+              "/fd", "SHA256",
+              "/tr", "http://timestamp.digicert.com",
+              "/td", "SHA256",
+              "/sha1", $signingCertificate.Thumbprint,
+              "/d", "DeepPhe Data API",
+              $artifactPath
+            )
+            & $signTool.FullName @signArguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "Authenticode signing failed with exit code $LASTEXITCODE."
+            }
+
+            & $signTool.FullName verify /pa /all /v $artifactPath
+            if ($LASTEXITCODE -ne 0) {
+              throw "Authenticode verification failed with exit code $LASTEXITCODE."
+            }
+          }
+          finally {
+            if ($signingCertificate) {
+              Remove-Item -Force -ErrorAction SilentlyContinue "Cert:\CurrentUser\My\$($signingCertificate.Thumbprint)"
+            }
+            Remove-Item -Force -ErrorAction SilentlyContinue $certificatePath
+          }
+
+      - name: Sign and notarize macOS executable
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          artifact_path="${{ matrix.artifact-file }}"
+          notarization_archive="$RUNNER_TEMP/${{ matrix.artifact }}.zip"
+
+          codesign --force --options runtime --timestamp --entitlements .github/macos-entitlements.plist --keychain "$MACOS_SIGNING_KEYCHAIN_PATH" --sign "$MACOS_SIGNING_IDENTITY" "$artifact_path"
+          codesign --verify --strict --verbose=2 "$artifact_path"
+          codesign --display --verbose=4 "$artifact_path"
+
+          ditto -c -k --keepParent "$artifact_path" "$notarization_archive"
+          xcrun notarytool submit "$notarization_archive" --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait
+          rm -f "$notarization_archive"
+
+      - name: Generate SHA-256 checksum (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          artifact_path="${{ matrix.artifact-file }}"
+          artifact_directory="$(dirname "$artifact_path")"
+          artifact_name="$(basename "$artifact_path")"
+
+          if command -v sha256sum > /dev/null 2>&1; then
+            (cd "$artifact_directory" && sha256sum "$artifact_name" > "$artifact_name.sha256")
+          else
+            (cd "$artifact_directory" && shasum -a 256 "$artifact_name" > "$artifact_name.sha256")
+          fi
+
+      - name: Generate SHA-256 checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $artifactPath = "${{ matrix.artifact-file }}"
+          $artifactName = Split-Path -Leaf $artifactPath
+          $hash = (Get-FileHash -Algorithm SHA256 $artifactPath).Hash.ToLowerInvariant()
+          "$hash  $artifactName" | Set-Content -Encoding utf8NoBOM -NoNewline "$artifactPath.sha256"
+
+      - name: Upload signed release asset
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}-release
+          path: |
+            ${{ matrix.artifact-file }}
+            ${{ matrix.artifact-file }}.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Remove temporary macOS signing keychain
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          if [ -n "${MACOS_SIGNING_KEYCHAIN_PATH:-}" ]; then
+            security delete-keychain "$MACOS_SIGNING_KEYCHAIN_PATH" || true
+          fi
+          if [ -n "${MACOS_SIGNING_CERTIFICATE_PATH:-}" ]; then
+            rm -f "$MACOS_SIGNING_CERTIFICATE_PATH"
+          fi
+
+  publish:
+    name: Publish signed DeepPhe-Dist release
+    needs: build
+    runs-on: ubuntu-latest
+    environment: DPHE 7.1
+    env:
+      DPHE_VERSION: ${{ vars.DPHE_VERSION }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Download release executables
+        uses: actions/download-artifact@v8
+        with:
+          pattern: dphe-data-api-*-release
+          path: dist
+          merge-multiple: true
 
       - name: Resolve release metadata
         id: release
@@ -42,24 +290,30 @@ jobs:
           {
             echo "title=${PACKAGE_NAME} ${DPHE_VERSION}"
             echo "notes<<EOF"
-            echo "Built from ${GITHUB_REPOSITORY}@${GITHUB_SHA}."
+            echo "Release binaries built from ${GITHUB_REPOSITORY}@${GITHUB_SHA}."
             echo
+            echo "Windows is Authenticode-signed and RFC 3161 timestamped."
+            echo "macOS is Developer ID-signed with hardened runtime and notarized by Apple."
+            echo "Linux is distributed with a SHA-256 checksum."
             echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Verify build artifacts
+      - name: Verify release assets
         shell: bash
         run: |
-          mapfile -t assets < <(find dist -maxdepth 1 -type f -print | sort)
+          mapfile -t executables < <(find dist -maxdepth 1 -type f ! -name '*.sha256' -print | sort)
+          mapfile -t checksums < <(find dist -maxdepth 1 -type f -name '*.sha256' -print | sort)
 
-          if [ "${#assets[@]}" -eq 0 ]; then
-            echo "::error title=No build artifacts::npm run build did not produce files in dist/."
+          if [ "${#executables[@]}" -ne 4 ] || [ "${#checksums[@]}" -ne 4 ]; then
+            echo "::error title=Unexpected build artifacts::Expected 4 executables and 4 checksums."
+            printf '%s\n' "${executables[@]}" "${checksums[@]}"
             exit 1
           fi
 
-          printf 'Build artifacts:\n'
-          printf '%s\n' "${assets[@]}"
+          (cd dist && sha256sum --check ./*.sha256)
+          printf 'Verified release assets:\n'
+          printf '%s\n' "${executables[@]}" "${checksums[@]}"
 
       - name: Create or update DeepPhe-Dist release
         env:
@@ -75,15 +329,9 @@ jobs:
           fi
 
           if gh release view "$RELEASE_TAG" --repo "$DIST_REPO" > /dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" \
-              --repo "$DIST_REPO" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES"
+            gh release edit "$RELEASE_TAG" --repo "$DIST_REPO" --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES"
           else
-            gh release create "$RELEASE_TAG" \
-              --repo "$DIST_REPO" \
-              --title "$RELEASE_TITLE" \
-              --notes "$RELEASE_NOTES"
+            gh release create "$RELEASE_TAG" --repo "$DIST_REPO" --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES"
           fi
 
       - name: Upload release assets
@@ -93,6 +341,4 @@ jobs:
         shell: bash
         run: |
           mapfile -t assets < <(find dist -maxdepth 1 -type f -print | sort)
-          gh release upload "$RELEASE_TAG" "${assets[@]}" \
-            --repo "$DIST_REPO" \
-            --clobber
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$DIST_REPO" --clobber

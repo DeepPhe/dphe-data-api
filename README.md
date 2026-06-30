@@ -156,17 +156,35 @@ directory.
 
 ### Publishing release assets
 
-Pushes to `main` run `.github/workflows/publish-dist-release.yml`. The workflow installs dependencies, runs
-`npm run build`, creates or updates a release in
-[`DeepPhe/DeepPhe-Dist`](https://github.com/DeepPhe/DeepPhe-Dist/releases), and uploads every file in `dist/` as a
-release asset.
+Pushes to `main` run `.github/workflows/publish-dist-release.yml`. The workflow builds each executable on its native
+platform, Authenticode-signs and timestamps Windows, Developer ID-signs and notarizes both macOS architectures, creates
+a SHA-256 checksum for every binary, and publishes the verified assets to
+[`DeepPhe/DeepPhe-Dist`](https://github.com/DeepPhe/DeepPhe-Dist/releases).
 
 The release tag is `dphe-data-api-<DPHE_VERSION>`, for example `dphe-data-api-7.1`. Re-running the
 workflow for the same DeepPhe version replaces matching assets on that release.
 
-Configure the source repository with a `DEEPHE_DIST_RELEASE_TOKEN` secret. The token must be able to create releases and
-upload assets in `DeepPhe/DeepPhe-Dist`; a fine-grained personal access token needs repository access to that repo and
-`Contents` read/write permission.
+Configure these repository secrets in `DeepPhe/dphe-data-api`:
+
+| Secret | Value |
+| --- | --- |
+| `DEEPHE_DIST_RELEASE_TOKEN` | Token able to create releases and upload assets in `DeepPhe/DeepPhe-Dist` |
+| `WINDOWS_CERTIFICATE_PFX_BASE64` | Base64-encoded Windows code-signing PFX |
+| `WINDOWS_CERTIFICATE_PASSWORD` | Password for the Windows PFX |
+| `MACOS_CERTIFICATE_P12_BASE64` | Base64-encoded Apple Developer ID PKCS#12 |
+| `MACOS_CERTIFICATE_PASSWORD` | Password for the Apple PKCS#12 |
+| `APPLE_ID` | Apple developer account email |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password used by Apple's notarization service |
+| `APPLE_TEAM_ID` | Apple Developer Team ID |
+
+A fine-grained `DEEPHE_DIST_RELEASE_TOKEN` needs access to `DeepPhe/DeepPhe-Dist` and `Contents` read/write
+permission. Set passwords interactively rather than putting them in a command or shell history:
+
+```bash
+gh secret set WINDOWS_CERTIFICATE_PASSWORD --repo DeepPhe/dphe-data-api
+gh secret set MACOS_CERTIFICATE_PASSWORD --repo DeepPhe/dphe-data-api
+gh secret set APPLE_APP_SPECIFIC_PASSWORD --repo DeepPhe/dphe-data-api
+```
 
 ## API Documentation
 
