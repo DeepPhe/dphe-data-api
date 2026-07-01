@@ -145,15 +145,25 @@ jobs:
             )
 
             $codeSigningOid = "1.3.6.1.5.5.7.3.3"
-            $signingCertificate = $importedCertificates |
+            foreach ($certificate in $importedCertificates) {
+              $ekuOids = @($certificate.EnhancedKeyUsageList | ForEach-Object { $_.ObjectId.Value })
+              $ekuSummary = if ($ekuOids.Count -eq 0) { "<not restricted>" } else { $ekuOids -join ", " }
+              Write-Host "Imported certificate: subject='$($certificate.Subject)'; privateKey=$($certificate.HasPrivateKey); EKUs=$ekuSummary"
+            }
+
+            $privateKeyCertificates = @($importedCertificates | Where-Object { $_.HasPrivateKey })
+            if ($privateKeyCertificates.Count -eq 0) {
+              throw "The PFX contains no certificate with a private key. Export the code-signing certificate again and select 'Yes, export the private key'."
+            }
+
+            $signingCertificate = $privateKeyCertificates |
               Where-Object {
                 $ekuOids = @($_.EnhancedKeyUsageList | ForEach-Object { $_.ObjectId.Value })
-                $_.HasPrivateKey -and ($ekuOids.Count -eq 0 -or $codeSigningOid -in $ekuOids)
+                $ekuOids.Count -eq 0 -or $codeSigningOid -in $ekuOids
               } |
               Select-Object -First 1
-
             if (-not $signingCertificate) {
-              throw "The PFX does not contain a certificate with a private key and the Code Signing EKU ($codeSigningOid)."
+              throw "The private-key certificate is not valid for Code Signing. It must have no EKU restriction or include $codeSigningOid."
             }
             if ($signingCertificate.NotBefore -gt (Get-Date)) {
               throw "The Windows code-signing certificate is not valid until $($signingCertificate.NotBefore.ToUniversalTime().ToString('u'))."
