@@ -203,7 +203,7 @@ npm run docs:build
 ```
 
 Pushes to `main` that change docs or OpenAPI inputs deploy the generated site to
-`https://deepphe.github.io/dphe-data-webservice/`.
+`https://deepphe.github.io/dphe-data-api/`.
 
 ## API Endpoints
 

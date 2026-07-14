@@ -16,8 +16,8 @@ The API uses built-in Node.js SQLite support plus pure JavaScript and WASM depen
 ## Install dependencies
 
 ```bash
-git clone https://github.com/DeepPhe/dphe-data-webservice.git
-cd dphe-data-webservice
+git clone https://github.com/DeepPhe/dphe-data-api.git
+cd dphe-data-api
 npm install
 ```
 

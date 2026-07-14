@@ -4,9 +4,9 @@ import type * as Preset from '@docusaurus/preset-classic';
 import type {EditUrlFunction} from '@docusaurus/plugin-content-docs';
 
 const organizationName = 'DeepPhe';
-const projectName = 'dphe-data-webservice';
+const projectName = 'dphe-data-api';
 const repositoryUrl = `https://github.com/${organizationName}/${projectName}`;
-const openApiJsonUrl = 'https://deepphe.github.io/dphe-data-webservice/openapi.json';
+const openApiJsonUrl = 'https://deepphe.github.io/dphe-data-api/openapi.json';
 const editUrl: EditUrlFunction = ({docPath}) =>
   `${repositoryUrl}/edit/main/docs/${docPath}`;
 
@@ -14,7 +14,7 @@ const config: Config = {
   title: 'DeepPhe Data API Documentation',
   tagline: 'Serve DeepPhe patient, cohort, concept, and OMOP data',
   url: 'https://deepphe.github.io',
-  baseUrl: '/dphe-data-webservice/',
+  baseUrl: '/dphe-data-api/',
   trailingSlash: false,
 
   organizationName,

@@ -11,7 +11,7 @@ const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const OPENAPI_SOURCE_PATH = path.join(ROOT_DIR, 'src', 'docs', 'openapi.generated.json');
 const STATIC_OPENAPI_PATH = path.join(ROOT_DIR, 'docs-site', 'static', 'openapi.json');
 const GENERATED_REFERENCE_PATH = path.join(ROOT_DIR, 'docs', 'reference', 'openapi.md');
-const DOCS_SITE_URL = 'https://deepphe.github.io/dphe-data-webservice/openapi.json';
+const DOCS_SITE_URL = 'https://deepphe.github.io/dphe-data-api/openapi.json';
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'];
 
 function runOpenApiBuild() {
