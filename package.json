@@ -14,6 +14,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "docs:install": "npm ci --prefix docs-site",
+    "docs:prepare": "node scripts/prepare-docs.mjs",
+    "docs:start": "npm run docs:prepare && npm --prefix docs-site run start",
+    "docs:build": "npm run docs:prepare && npm --prefix docs-site run build",
+    "docs:serve": "npm --prefix docs-site run serve",
     "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"*.js\"",
     "format:check": "prettier --check \"src/**/*.js\" \"test/**/*.js\" \"*.js\""
   },

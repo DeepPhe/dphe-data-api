@@ -109,6 +109,9 @@ dist
 
 # Docusaurus cache and generated files
 .docusaurus
+site/
+docs/reference/openapi.md
+docs-site/static/openapi.json
 
 # Serverless directories
 .serverless/

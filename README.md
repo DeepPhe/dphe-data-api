@@ -194,6 +194,17 @@ Once the server is running, access the interactive Swagger documentation at:
 http://localhost:3333/docs
 ```
 
+The GitHub Pages documentation site is built with Docusaurus from `docs-site/` and `docs/`:
+
+```bash
+npm run docs:install
+npm run docs:start
+npm run docs:build
+```
+
+Pushes to `main` that change docs or OpenAPI inputs deploy the generated site to
+`https://deepphe.github.io/dphe-data-webservice/`.
+
 ## API Endpoints
 
 ### Patient
@@ -302,6 +313,8 @@ npm test -- src/db/sqlite-client.test.js
 | `npm run generate-schemas` | Generate TypeScript definitions from JSON schemas               |
 | `npm run build:spec`       | Generate the static OpenAPI spec for packaged binaries          |
 | `npm run build`            | Build standalone executables for all platforms into `dist/`     |
+| `npm run docs:start`       | Start the local Docusaurus documentation site                   |
+| `npm run docs:build`       | Build the Docusaurus site into `site/`                          |
 | `npm test`                 | Run all tests                                                   |
 | `npm run test:watch`       | Run tests in watch mode                                         |
 | `npm run test:coverage`    | Run tests with coverage report                                  |
