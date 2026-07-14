@@ -61,6 +61,10 @@ const config: Config = {
     },
     navbar: {
       title: 'DeepPhe Data API',
+      logo: {
+        alt: 'DeepPhe',
+        src: 'img/logo.svg',
+      },
       items: [
         {
           type: 'docSidebar',
