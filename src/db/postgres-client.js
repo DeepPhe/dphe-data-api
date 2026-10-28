@@ -92,6 +92,10 @@ function isNumericId(value) {
   return /^\d+$/.test(String(value || ''));
 }
 
+// Sequential IDs are PostgreSQL `integer`. Larger numbers (e.g. 10-digit person IDs) can only be
+// external patient IDs, and passing them in an ::integer[] parameter would fail the whole query.
+const PG_INTEGER_MAX = 2147483647;
+
 function toIntegerArray(values) {
   const integers = [];
   for (const value of values) {
@@ -100,7 +104,7 @@ function toIntegerArray(values) {
     }
 
     const parsed = Number(value);
-    if (Number.isSafeInteger(parsed) && parsed >= 0) {
+    if (Number.isSafeInteger(parsed) && parsed >= 0 && parsed <= PG_INTEGER_MAX) {
       integers.push(parsed);
     }
   }
