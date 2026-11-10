@@ -63,6 +63,18 @@ The database URL is configured in `src/config/database.js` and can be overridden
 
 Packaged binaries require an explicit `DATABASE_URL` or `--database-url`.
 
+### In-memory caching (restart after a database reload)
+
+The API treats the database as static while it is being served. To keep filter and summary requests
+fast it caches, in memory and for the life of the process: table column metadata, every row of the
+bitmap tables used by the filter endpoints (with the patient bitmaps decoded once), the whole
+`patient_id_mapping` table, and the four `summary` responses (per `includePatientIds` value). The
+caches load on first use (and in the background at startup).
+
+**Restart the API after the database is reloaded or modified**, otherwise it keeps serving the old
+data. Set `DPHE_API_CACHE=0` to turn all caches off and run every request against PostgreSQL (for
+debugging; much slower).
+
 ### Database Schema
 
 The API expects the following tables in the `deepphe` schema:
@@ -345,6 +357,7 @@ The test seeder refuses to reset a database unless its name ends with `_test`.
 
 - `PORT` - Server port (default: 3333)
 - `DATABASE_URL` - PostgreSQL connection URL
+- `DPHE_API_CACHE` - set to `0` to disable the in-memory caches (default: enabled)
 - `API_DATABASE_URL` - Docker Compose PostgreSQL connection URL
 - `TEST_DATABASE_URL` - PostgreSQL URL used by tests
 - `TEST_PATIENT_ID` - Patient ID used in tests

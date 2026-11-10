@@ -170,6 +170,19 @@ class PostgresBitmapService {
       return [];
     }
 
+    return this.sequentialIdsToPatientIds(sequentialIds);
+  }
+
+  // Map sequential IDs to external patient IDs, in order; unmapped IDs become 'missing'.
+  async sequentialIdsToPatientIds(sequentialIds) {
+    const mapping = await this.client.getPatientIdMapping();
+    if (mapping) {
+      return sequentialIds.map((sequentialId) => {
+        const patientId = mapping.patientIdBySequentialId.get(sequentialId);
+        return patientId !== undefined ? patientId : 'missing';
+      });
+    }
+
     const patientIdsBySequentialId = {};
     for (let index = 0; index < sequentialIds.length; index += 10000) {
       const chunk = sequentialIds.slice(index, index + 10000);

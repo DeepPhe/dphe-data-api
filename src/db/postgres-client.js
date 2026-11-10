@@ -4,7 +4,8 @@ const roaring = require('roaring-wasm');
 const { DATABASE_URL, maskDatabaseUrl } = require('../config/database');
 const { PostgresBitmapService } = require('./postgres-bitmap-service');
 const { PostgresFileStore } = require('./postgres-file-store');
-const { all: pgAll, get: pgGet } = require('./postgres-operations');
+const { FilterIndex } = require('./postgres-filter-index');
+const { all: pgAll, assertDatabaseOpen, get: pgGet } = require('./postgres-operations');
 
 const DEEPPHE_SCHEMA = 'deepphe';
 
@@ -44,6 +45,13 @@ const REQUIRED_TABLE_COLUMNS = Object.freeze({
 
 const INTEGER_TYPES = new Set(['smallint', 'integer', 'bigint']);
 const BOOLEAN_PUBLIC_COLUMNS = ['negated', 'uncertain', 'historic'];
+
+// The database is static while it is served (it is only replaced by a full reload, after which the
+// API is restarted), so table metadata, the filter index, the patient ID mapping and the summaries are
+// cached in memory for the life of the process. DPHE_API_CACHE=0 turns every cache off (debugging).
+function isCacheEnabledByEnv() {
+  return String(process.env.DPHE_API_CACHE ?? '1').trim() !== '0';
+}
 
 function normalizeString(value) {
   return String(value ?? '').trim();
@@ -147,6 +155,9 @@ class PostgresClient {
     this.isOpen = false;
     this.summaryPayloadColumn = null;
     this.summaryPatientIdMode = null;
+    this.cacheEnabled =
+      options.cache !== undefined ? Boolean(options.cache) : isCacheEnabledByEnv();
+    this.clearCaches();
     this._bitmapService = new PostgresBitmapService(this);
     this._fileStore = new PostgresFileStore(this);
   }
@@ -158,6 +169,7 @@ class PostgresClient {
 
     await roaring.roaringLibraryInitialize();
 
+    this.clearCaches();
     this.pool = new Pool({
       connectionString: this.databaseUrl,
       max: Number(process.env.PG_POOL_MAX || this.options.max || 10),
@@ -176,7 +188,45 @@ class PostgresClient {
     }
   }
 
+  // Forget everything cached from the database. open() and close() call this; tests that modify the
+  // database under an open client call it too.
+  clearCaches() {
+    this._columnDetailsCache = new Map();
+    this._filterIndexPromise = null;
+    this._patientIdMappingPromise = null;
+    this._summaryCache = new Map();
+  }
+
+  // Load the in-memory caches ahead of the first request. Failures are left to the lazy loaders.
+  async warmCaches() {
+    if (!this.cacheEnabled) {
+      return;
+    }
+    await Promise.all([this.getFilterIndex(), this.getPatientIdMapping()]);
+  }
+
+  // Run compute once per key and share the promise (and so the result) with concurrent and later
+  // callers. A failed computation is not kept.
+  getCached(cache, key, compute) {
+    if (!this.cacheEnabled) {
+      return compute();
+    }
+
+    let promise = cache.get(key);
+    if (!promise) {
+      promise = compute().catch((error) => {
+        if (cache.get(key) === promise) {
+          cache.delete(key);
+        }
+        throw error;
+      });
+      cache.set(key, promise);
+    }
+    return promise;
+  }
+
   async close() {
+    this.clearCaches();
     if (!this.pool) {
       this.isOpen = false;
       return;
@@ -242,6 +292,13 @@ class PostgresClient {
   }
 
   async getTableColumnDetails(tableName) {
+    // Column metadata is fixed for the life of the process (missing tables give an empty list).
+    return this.getCached(this._columnDetailsCache, tableName, () =>
+      this.queryTableColumnDetails(tableName),
+    );
+  }
+
+  async queryTableColumnDetails(tableName) {
     const result = await this.pool.query(
       `SELECT column_name, data_type
        FROM information_schema.columns
@@ -296,19 +353,27 @@ class PostgresClient {
     return Promise.resolve(['AGE_AT_DX', 'ETHNICITY', 'GENDER', 'RACE', 'CANCER']);
   }
 
+  // The four summaries are expensive and the data is static: compute each (per includePatientIds)
+  // once. The returned object is shared, so callers must treat it as read-only.
+  getCachedSummary(kind, includePatientIds, compute) {
+    return this.getCached(this._summaryCache, `${kind}:${includePatientIds ? 1 : 0}`, compute);
+  }
+
   async getOmopSummary(includePatientIds = true) {
     if (!this.isOpen) {
       throw new Error('Database is not open');
     }
 
-    const classes = await this.getOmopClasses();
-    const instancesByClass = {};
+    return this.getCachedSummary('omop', includePatientIds, async () => {
+      const classes = await this.getOmopClasses();
+      const instancesByClass = {};
 
-    for (const omopClass of classes) {
-      instancesByClass[omopClass] = await this.getOmopInstances(omopClass, includePatientIds);
-    }
+      for (const omopClass of classes) {
+        instancesByClass[omopClass] = await this.getOmopInstances(omopClass, includePatientIds);
+      }
 
-    return { classes, instancesByClass };
+      return { classes, instancesByClass };
+    });
   }
 
   async getAttributesSummary(includePatientIds = true) {
@@ -316,17 +381,19 @@ class PostgresClient {
       throw new Error('Database is not open');
     }
 
-    const classes = await this.getAttributesClasses();
-    const instancesByClass = {};
+    return this.getCachedSummary('attributes', includePatientIds, async () => {
+      const classes = await this.getAttributesClasses();
+      const instancesByClass = {};
 
-    for (const attributeClass of classes) {
-      instancesByClass[attributeClass] = await this.getAttributesInstances(
-        attributeClass,
-        includePatientIds,
-      );
-    }
+      for (const attributeClass of classes) {
+        instancesByClass[attributeClass] = await this.getAttributesInstances(
+          attributeClass,
+          includePatientIds,
+        );
+      }
 
-    return { classes, instancesByClass };
+      return { classes, instancesByClass };
+    });
   }
 
   async getCancersSummary(includePatientIds = true) {
@@ -334,14 +401,16 @@ class PostgresClient {
       throw new Error('Database is not open');
     }
 
-    const classes = await this.getCancersClasses();
-    const instancesByClass = {};
+    return this.getCachedSummary('cancers', includePatientIds, async () => {
+      const classes = await this.getCancersClasses();
+      const instancesByClass = {};
 
-    for (const classUri of classes) {
-      instancesByClass[classUri] = await this.getCancersInstances(classUri, includePatientIds);
-    }
+      for (const classUri of classes) {
+        instancesByClass[classUri] = await this.getCancersInstances(classUri, includePatientIds);
+      }
 
-    return { classes, instancesByClass };
+      return { classes, instancesByClass };
+    });
   }
 
   async getConceptsSummary(includePatientIds = true) {
@@ -349,17 +418,101 @@ class PostgresClient {
       throw new Error('Database is not open');
     }
 
-    const classes = await this.getConceptsClasses();
-    const instancesByClass = {};
+    return this.getCachedSummary('concepts', includePatientIds, async () => {
+      const classes = await this.getConceptsClasses();
+      const instancesByClass = {};
 
-    for (const dpheGroup of classes) {
-      instancesByClass[dpheGroup] = await this.getConceptsInstances(dpheGroup, includePatientIds);
+      for (const dpheGroup of classes) {
+        instancesByClass[dpheGroup] = await this.getConceptsInstances(dpheGroup, includePatientIds);
+      }
+
+      return { classes, instancesByClass };
+    });
+  }
+
+  // sequential_id <-> patient_id, loaded once. Resolves to null when caching is off, or when the
+  // mapping is not one-to-one (then the SQL lookups stay authoritative).
+  async getPatientIdMapping() {
+    assertDatabaseOpen(this);
+    if (!this.cacheEnabled) {
+      return null;
     }
 
-    return { classes, instancesByClass };
+    if (!this._patientIdMappingPromise) {
+      const promise = this.loadPatientIdMapping().catch((error) => {
+        if (this._patientIdMappingPromise === promise) {
+          this._patientIdMappingPromise = null;
+        }
+        throw error;
+      });
+      this._patientIdMappingPromise = promise;
+    }
+    return this._patientIdMappingPromise;
+  }
+
+  async loadPatientIdMapping() {
+    const rows = await this.getAllRows(
+      'SELECT sequential_id, patient_id FROM deepphe.patient_id_mapping',
+    );
+    const patientIdBySequentialId = new Map();
+    const sequentialIdByPatientId = new Map();
+
+    for (const row of rows) {
+      patientIdBySequentialId.set(row.sequential_id, row.patient_id);
+      sequentialIdByPatientId.set(row.patient_id, row.sequential_id);
+    }
+
+    if (
+      patientIdBySequentialId.size !== rows.length ||
+      sequentialIdByPatientId.size !== rows.length
+    ) {
+      console.warn(
+        `patient_id_mapping is not one-to-one (${rows.length} rows); using SQL lookups instead of the in-memory mapping`,
+      );
+      return null;
+    }
+
+    return { patientIdBySequentialId, sequentialIdByPatientId };
+  }
+
+  // Rows of patient_id_mapping whose patient_id is in patientIds or whose sequential_id is in
+  // sequentialIds.
+  async getMappingRows(patientIds, sequentialIds) {
+    const mapping = await this.getPatientIdMapping();
+    if (!mapping) {
+      return this.getAllRows(
+        `SELECT sequential_id, patient_id
+         FROM deepphe.patient_id_mapping
+         WHERE patient_id = ANY($1::text[])
+            OR sequential_id = ANY($2::integer[])`,
+        [patientIds, sequentialIds],
+      );
+    }
+
+    const rows = [];
+    const seen = new Set();
+    const add = (sequentialId, patientId) => {
+      if (sequentialId !== undefined && patientId !== undefined && !seen.has(sequentialId)) {
+        seen.add(sequentialId);
+        rows.push({ sequential_id: sequentialId, patient_id: patientId });
+      }
+    };
+    for (const patientId of patientIds) {
+      add(mapping.sequentialIdByPatientId.get(patientId), patientId);
+    }
+    for (const sequentialId of sequentialIds) {
+      add(sequentialId, mapping.patientIdBySequentialId.get(sequentialId));
+    }
+    return rows;
   }
 
   async getSequentialIdForPatient(patientId) {
+    const mapping = await this.getPatientIdMapping();
+    if (mapping) {
+      const sequentialId = mapping.sequentialIdByPatientId.get(String(patientId));
+      return sequentialId !== undefined ? sequentialId : null;
+    }
+
     const row = await pgGet(
       this,
       'SELECT sequential_id FROM deepphe.patient_id_mapping WHERE patient_id = $1 LIMIT 1',
@@ -558,13 +711,7 @@ class PostgresClient {
 
   async getSequentialPatientSummaries(normalizedPatientIds) {
     const numericSequentialIds = toIntegerArray(normalizedPatientIds);
-    const mappingRows = await this.getAllRows(
-      `SELECT sequential_id, patient_id
-       FROM deepphe.patient_id_mapping
-       WHERE patient_id = ANY($1::text[])
-          OR sequential_id = ANY($2::integer[])`,
-      [normalizedPatientIds, numericSequentialIds],
-    );
+    const mappingRows = await this.getMappingRows(normalizedPatientIds, numericSequentialIds);
 
     const summaryIds = new Set(numericSequentialIds);
     const externalBySequentialId = new Map();
@@ -621,13 +768,7 @@ class PostgresClient {
 
   async getExternalPatientSummaries(normalizedPatientIds) {
     const numericSequentialIds = toIntegerArray(normalizedPatientIds);
-    const mappingRows = await this.getAllRows(
-      `SELECT sequential_id, patient_id
-       FROM deepphe.patient_id_mapping
-       WHERE patient_id = ANY($1::text[])
-          OR sequential_id = ANY($2::integer[])`,
-      [normalizedPatientIds, numericSequentialIds],
-    );
+    const mappingRows = await this.getMappingRows(normalizedPatientIds, numericSequentialIds);
 
     const candidatePatientIds = new Set(normalizedPatientIds);
     const aliasesByPatientId = new Map();
@@ -672,12 +813,7 @@ class PostgresClient {
       .filter(Boolean);
   }
 
-  async getFilteredPatientCount(filters, includePatientIds = false, autoIncludeThreshold = 20) {
-    if (!this.isOpen) {
-      throw new Error('Database is not open');
-    }
-
-    const totalStart = process.hrtime.bigint();
+  async getFilterTypeConfig() {
     const attributeColumns = await this.getTableColumns('attributes_by_group');
     const attributeValueColumns = [];
     if (attributeColumns.has('classuri')) {
@@ -709,6 +845,56 @@ class PostgresClient {
         valueColumns: ['classuri'],
       },
     };
+
+    return typeConfig;
+  }
+
+  // The in-memory filter index, loaded once (lazily, or by warmCaches()) and shared by all requests.
+  async getFilterIndex() {
+    if (!this._filterIndexPromise) {
+      const promise = this.getFilterTypeConfig()
+        .then((typeConfig) =>
+          FilterIndex.load(this, [
+            ...Object.values(typeConfig).map((cfg) => ({
+              table: cfg.table,
+              classColumn: cfg.classColumn,
+              valueColumns: cfg.valueColumns,
+            })),
+            ...Object.values(OMOP_CLASS_CONFIG).map((cfg) => ({
+              table: cfg.table,
+              classColumn: null,
+              valueColumns: [cfg.valueColumn],
+              optional: true,
+            })),
+          ]),
+        )
+        .catch((error) => {
+          if (this._filterIndexPromise === promise) {
+            this._filterIndexPromise = null;
+          }
+          throw error;
+        });
+      this._filterIndexPromise = promise;
+    }
+    return this._filterIndexPromise;
+  }
+
+  async getFilteredPatientCount(filters, includePatientIds = false, autoIncludeThreshold = 20) {
+    if (!this.isOpen) {
+      throw new Error('Database is not open');
+    }
+
+    const totalStart = process.hrtime.bigint();
+    const typeConfig = await this.getFilterTypeConfig();
+
+    if (this.cacheEnabled) {
+      return this.getFilteredPatientCountFromIndex(
+        filters,
+        includePatientIds,
+        autoIncludeThreshold,
+        totalStart,
+      );
+    }
 
     const queryStart = process.hrtime.bigint();
     const filterRows = [];
@@ -838,6 +1024,116 @@ class PostgresClient {
         if (bitmap) {
           roaring.dispose(bitmap);
         }
+      }
+      if (resultBitmap) {
+        roaring.dispose(resultBitmap);
+      }
+    }
+  }
+
+  // Same semantics as the SQL path in getFilteredPatientCount, answered from the in-memory index.
+  // The index's bitmaps are shared: only clones made here are modified or disposed.
+  async getFilteredPatientCountFromIndex(
+    filters,
+    includePatientIds,
+    autoIncludeThreshold,
+    totalStart,
+  ) {
+    const index = await this.getFilterIndex();
+
+    const queryStart = process.hrtime.bigint();
+    const filterEntries = [];
+
+    for (const filter of filters) {
+      const { type, class: filterClass, instances } = filter;
+      const normalizedInstances = Array.from(
+        new Set((Array.isArray(instances) ? instances : []).map((value) => String(value))),
+      );
+
+      let tableName;
+      let classKey = null;
+      if (type === 'omop') {
+        const className = String(filterClass || '').toUpperCase();
+        const cfg = OMOP_CLASS_CONFIG[className];
+        if (!cfg) throw new Error(`Invalid OMOP class: ${filterClass}`);
+        tableName = cfg.table;
+      } else if (type === 'attributes' || type === 'cancers' || type === 'concepts') {
+        tableName = `${type}_by_group`;
+        classKey = filterClass;
+      } else {
+        throw new Error(`Invalid filter type: ${type}`);
+      }
+
+      filterEntries.push(index.getTable(tableName).find(classKey, normalizedInstances));
+    }
+
+    const queryEnd = process.hrtime.bigint();
+    const bitmapStart = process.hrtime.bigint();
+    const ownedBitmaps = []; // clones and empty bitmaps created for this call: disposed below
+    const itemBitmaps = [];
+    const itemCounts = [];
+    let resultBitmap = null;
+
+    try {
+      for (const entries of filterEntries) {
+        let itemBitmap;
+        const bitmaps = entries.map((entry) => entry.bitmap).filter(Boolean);
+        if (bitmaps.length === 0) {
+          itemBitmap = new roaring.RoaringBitmap32();
+          ownedBitmaps.push(itemBitmap);
+        } else if (bitmaps.length === 1) {
+          itemBitmap = bitmaps[0];
+        } else {
+          itemBitmap = bitmaps[0].clone();
+          ownedBitmaps.push(itemBitmap);
+          for (let i = 1; i < bitmaps.length; i++) {
+            itemBitmap.orInPlace(bitmaps[i]);
+          }
+        }
+        itemBitmaps.push(itemBitmap);
+        itemCounts.push(itemBitmap.size);
+      }
+
+      if (itemBitmaps.length === 0 || itemBitmaps.some((bitmap) => bitmap.size === 0)) {
+        resultBitmap = new roaring.RoaringBitmap32();
+      } else {
+        resultBitmap = itemBitmaps[0].clone();
+        for (let i = 1; i < itemBitmaps.length; i++) {
+          resultBitmap.andInPlace(itemBitmaps[i]);
+          if (resultBitmap.size === 0) break;
+        }
+      }
+
+      const bitmapEnd = process.hrtime.bigint();
+      const shouldResolveIds =
+        resultBitmap.size > 0 &&
+        (includePatientIds ||
+          (autoIncludeThreshold > 0 && resultBitmap.size < autoIncludeThreshold));
+
+      const resolveStart = process.hrtime.bigint();
+      let patient_ids = [];
+
+      if (shouldResolveIds) {
+        patient_ids = await this._bitmapService.sequentialIdsToPatientIds(resultBitmap.toArray());
+      }
+
+      const resolveEnd = process.hrtime.bigint();
+      const ms = (start, end) => Math.round(Number(end - start) / 1e4) / 100;
+
+      return {
+        count: resultBitmap.size,
+        patient_ids,
+        timing: {
+          queryMs: ms(queryStart, queryEnd),
+          bitmapMs: ms(bitmapStart, bitmapEnd),
+          resolveMs: ms(resolveStart, resolveEnd),
+          totalMs: ms(totalStart, resolveEnd),
+          itemCounts,
+        },
+      };
+    } finally {
+      for (const bitmap of ownedBitmaps) {
+        roaring.dispose(bitmap);
       }
       if (resultBitmap) {
         roaring.dispose(resultBitmap);

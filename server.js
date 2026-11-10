@@ -89,12 +89,17 @@ const port = process.env.PORT || 3333;
 
 async function startServer() {
   try {
-    await initializeDatabase();
+    const db = await initializeDatabase();
 
     const server = app.listen(port, () => {
       console.log(`dphe-data-api listening on http://localhost:${port}`);
       console.log(`Swagger UI: http://localhost:${port}/docs`);
       console.log(`OpenAPI JSON: http://localhost:${port}/openapi.json`);
+    });
+
+    // Load the in-memory caches in the background; requests fall back to loading them lazily.
+    db.warmCaches().catch((error) => {
+      console.error('Cache warm-up failed:', error.message);
     });
 
     const shutdown = async (signal) => {

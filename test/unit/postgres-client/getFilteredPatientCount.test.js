@@ -163,4 +163,51 @@ describe('PostgresClient.getFilteredPatientCount', () => {
 
     expect(result.patient_ids).toEqual([]);
   });
+
+  test('the in-memory index gives the same answers as the SQL path', async () => {
+    const sqlClient = new PostgresClient(process.env.DATABASE_URL, { cache: false });
+    await sqlClient.open();
+
+    try {
+      const filterSets = [
+        [{ type: 'omop', class: 'RACE', instances: raceValues }],
+        [{ type: 'omop', class: 'gender', instances: genderValues }],
+        [{ type: 'omop', class: 'RACE', instances: ['ZZZ_NO_SUCH_RACE_VALUE'] }],
+        [{ type: 'attributes', class: 'stage', instances: ['AJCC_Stage_II', 'AJCC_Stage_III'] }],
+        [{ type: 'attributes', class: 'stage', instances: [] }],
+        [{ type: 'cancers', class: 'ignored', instances: ['Breast_Cancer', 'Lung_Cancer'] }],
+        [
+          { type: 'attributes', class: 'stage', instances: ['AJCC_Stage_II'] },
+          { type: 'cancers', class: 'ignored', instances: ['Breast_Cancer'] },
+          { type: 'concepts', class: 'Biomarker', instances: ['HER2'] },
+        ],
+        [
+          { type: 'concepts', class: 'Biomarker', instances: ['HER2'] },
+          { type: 'attributes', class: 'stage', instances: ['AJCC_Stage_III'] },
+          { type: 'cancers', class: 'ignored', instances: ['Breast_Cancer'] },
+        ],
+      ];
+
+      for (const filters of filterSets) {
+        for (const [includePatientIds, threshold] of [
+          [true, 20],
+          [false, 20],
+          [false, 0],
+        ]) {
+          const cached = await db.getFilteredPatientCount(filters, includePatientIds, threshold);
+          const direct = await sqlClient.getFilteredPatientCount(
+            filters,
+            includePatientIds,
+            threshold,
+          );
+          expect(cached.count).toBe(direct.count);
+          expect(cached.patient_ids).toEqual(direct.patient_ids);
+          expect(Object.keys(cached.timing)).toEqual(Object.keys(direct.timing));
+          expect(cached.timing.itemCounts).toEqual(direct.timing.itemCounts);
+        }
+      }
+    } finally {
+      await sqlClient.close();
+    }
+  });
 });

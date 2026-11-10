@@ -71,6 +71,7 @@ describe('PostgresClient.getPatientSummariesByPatientIds', () => {
           zlib.zstdCompressSync(Buffer.from(JSON.stringify({ patient_id: largePatientId }))),
         ],
       );
+      db.clearCaches(); // The client caches patient_id_mapping; this test changed it under the client.
     });
 
     afterAll(async () => {
@@ -80,6 +81,7 @@ describe('PostgresClient.getPatientSummariesByPatientIds', () => {
       await db.getAllRows(`DELETE FROM deepphe.patient_id_mapping WHERE sequential_id = $1`, [
         sequentialId,
       ]);
+      db.clearCaches();
     });
 
     test('returns the summary for a patient ID above the integer range', async () => {
