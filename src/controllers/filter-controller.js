@@ -76,7 +76,10 @@ exports.getFilteredPatientCount = async (req, res) => {
   }
 };
 
-const MAX_BATCH_SIZE = 500;
+// A query is about 180 bytes of JSON, so a full batch is under 1 MB, far below the 10 MB body limit.
+// The viewer sends its first chunk at 500 and the rest at 2000, to cut the round trips for the ~19,000
+// row counts it asks for after a filter click.
+const MAX_BATCH_SIZE = 5000;
 const DEFAULT_BATCH_CONCURRENCY = 10;
 
 function resolveBatchConcurrency() {

@@ -132,8 +132,20 @@ describe('filter controller', () => {
       expect(result.body.error).toContain(errorText);
     });
 
+    test('accepts a batch of 2000 queries and answers each one in order', async () => {
+      mockDb.getFilteredPatientCount.mockImplementation(async () => ({ count: 1, patient_ids: [] }));
+      const queries = Array.from({ length: 2000 }, () => ({ filters: [validFilter] }));
+
+      const result = await invokeController(filterController.getBatchFilteredPatientCount, {
+        body: { queries },
+      });
+
+      expect(result.status).toBe(200);
+      expect(result.body.results).toHaveLength(2000);
+    });
+
     test('rejects batches over the maximum size', async () => {
-      const queries = Array.from({ length: 501 }, () => ({
+      const queries = Array.from({ length: 5001 }, () => ({
         filters: [validFilter],
       }));
 
@@ -142,7 +154,7 @@ describe('filter controller', () => {
       });
 
       expect(result.status).toBe(400);
-      expect(result.body.error).toContain('exceeds maximum of 500');
+      expect(result.body.error).toContain('exceeds maximum of 5000');
     });
 
     test('returns successful and failed query results in order', async () => {
