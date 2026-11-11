@@ -1,4 +1,4 @@
-const { getInstance } = require('../db/sqlite-client');
+const { getInstance } = require('../db/postgres-client');
 const VALID_OMOP_CLASSES = ['AGE_AT_DX', 'ETHNICITY', 'GENDER', 'RACE', 'CANCER'];
 
 /**

@@ -1,4 +1,4 @@
-const { getInstance } = require('../db/sqlite-client');
+const { getInstance } = require('../db/postgres-client');
 
 const VALID_TYPES = ['omop', 'attributes', 'cancers', 'concepts'];
 
@@ -77,6 +77,32 @@ exports.getFilteredPatientCount = async (req, res) => {
 };
 
 const MAX_BATCH_SIZE = 500;
+const DEFAULT_BATCH_CONCURRENCY = 10;
+
+function resolveBatchConcurrency() {
+  const configured = Number(process.env.FILTER_BATCH_CONCURRENCY || process.env.PG_POOL_MAX);
+  if (Number.isSafeInteger(configured) && configured > 0) {
+    return configured;
+  }
+  return DEFAULT_BATCH_CONCURRENCY;
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex);
+    }
+  }
+
+  const workerCount = Math.min(Math.max(1, limit), items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
 
 /**
  * POST /count/batch
@@ -85,8 +111,8 @@ const MAX_BATCH_SIZE = 500;
  * Each query has the same shape as the body of POST /count, plus an optional
  * `includePatientIds` boolean and `autoIncludeThreshold` integer.
  *
- * All queries are executed concurrently.  A per-query error is captured and
- * returned inline (as `{ error }`) rather than failing the entire batch.
+ * Queries are executed with bounded concurrency. A per-query error is captured
+ * and returned inline (as `{ error }`) rather than failing the entire batch.
  */
 exports.getBatchFilteredPatientCount = async (req, res) => {
   try {
@@ -125,25 +151,23 @@ exports.getBatchFilteredPatientCount = async (req, res) => {
     const db = getInstance();
     await db.open();
 
-    const results = await Promise.all(
-      queries.map(async (query) => {
-        const includePatientIds =
-          query.includePatientIds === true ||
-          String(query.includePatientIds).toLowerCase() === 'true';
-        const rawThreshold = query.autoIncludeThreshold;
-        const autoIncludeThreshold =
-          rawThreshold !== undefined ? Math.max(0, Number(rawThreshold) || 0) : 20;
-        try {
-          return await db.getFilteredPatientCount(
-            query.filters,
-            includePatientIds,
-            autoIncludeThreshold,
-          );
-        } catch (err) {
-          return { error: err.message || 'Query failed', count: 0, patient_ids: [] };
-        }
-      }),
-    );
+    const results = await mapWithConcurrency(queries, resolveBatchConcurrency(), async (query) => {
+      const includePatientIds =
+        query.includePatientIds === true ||
+        String(query.includePatientIds).toLowerCase() === 'true';
+      const rawThreshold = query.autoIncludeThreshold;
+      const autoIncludeThreshold =
+        rawThreshold !== undefined ? Math.max(0, Number(rawThreshold) || 0) : 20;
+      try {
+        return await db.getFilteredPatientCount(
+          query.filters,
+          includePatientIds,
+          autoIncludeThreshold,
+        );
+      } catch (err) {
+        return { error: err.message || 'Query failed', count: 0, patient_ids: [] };
+      }
+    });
 
     return res.status(200).json({ results });
   } catch (error) {

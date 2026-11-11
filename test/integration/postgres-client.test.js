@@ -4,12 +4,12 @@ const path = require('path');
 const roaring = require('roaring-wasm');
 const { db } = require('../../src/db');
 
-describe('SQLiteClient.patientBitmapToPatientIds', () => {
+describe('PostgresClient.patientBitmapToPatientIds', () => {
   let tempDir;
 
   beforeAll(async () => {
     await db.open();
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sqlite-test-'));
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'postgres-test-'));
   });
 
   afterAll(async () => {
@@ -19,7 +19,7 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
 
   test('maps sequential IDs and marks unknown IDs as missing', async () => {
     const mappings = await db.getAllRows(
-      'SELECT sequential_id, patient_id FROM patient_id_mapping LIMIT 5',
+      'SELECT sequential_id, patient_id FROM deepphe.patient_id_mapping LIMIT 5',
     );
     expect(mappings.length).toBeGreaterThan(0);
 
@@ -56,7 +56,7 @@ describe('SQLiteClient.patientBitmapToPatientIds', () => {
 
   test('rejects an invalid source type', async () => {
     await expect(db.patientBitmapToPatientIds(Buffer.alloc(0), 'invalid')).rejects.toThrow(
-      'Invalid sourceType. Must be "file", "buffer", or "base64"',
+      'Invalid sourceType. Must be "file", "buffer", "base64", or "blob"',
     );
   });
 });

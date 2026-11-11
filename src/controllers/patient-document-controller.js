@@ -66,6 +66,78 @@ function normalizeEpisodeType(episode) {
   return normalized;
 }
 
+function isValidDateParts(year, month, day) {
+  return year >= 1900 && year <= 2300 && month >= 1 && month <= 12 && day >= 1 && day <= 31;
+}
+
+function normalizeClinicalTimestamp(value) {
+  const digits = String(value || '').replace(/[^0-9]/g, '');
+  if (digits.length < 8) {
+    return '';
+  }
+
+  const year = Number(digits.slice(0, 4));
+  const month = Number(digits.slice(4, 6));
+  const day = Number(digits.slice(6, 8));
+  if (!isValidDateParts(year, month, day)) {
+    return '';
+  }
+
+  return digits.slice(0, Math.min(digits.length, 12));
+}
+
+function extractRunTimestamp(documentId) {
+  const match = String(documentId || '').match(/_(\d{14})_D_\d+$/);
+  if (!match) {
+    return '';
+  }
+
+  const digits = match[1];
+  const yyyyMMdd = {
+    year: Number(digits.slice(0, 4)),
+    month: Number(digits.slice(4, 6)),
+    day: Number(digits.slice(6, 8)),
+  };
+  if (isValidDateParts(yyyyMMdd.year, yyyyMMdd.month, yyyyMMdd.day)) {
+    return digits.slice(0, 12);
+  }
+
+  const ddMMyyyy = {
+    year: Number(digits.slice(4, 8)),
+    month: Number(digits.slice(2, 4)),
+    day: Number(digits.slice(0, 2)),
+  };
+  if (!isValidDateParts(ddMMyyyy.year, ddMMyyyy.month, ddMMyyyy.day)) {
+    return '';
+  }
+
+  return `${digits.slice(4, 8)}${digits.slice(2, 4)}${digits.slice(0, 2)}${digits.slice(8, 12)}`;
+}
+
+function extractPrincipalDate(documentText) {
+  const match = String(documentText || '').match(/Principal\s+Date[^0-9]*(\d{8})\D*(\d{4})/i);
+  if (!match) {
+    return '';
+  }
+
+  return normalizeClinicalTimestamp(`${match[1]}${match[2]}`);
+}
+
+function resolveDocumentDate(value) {
+  const storedDate = normalizeClinicalTimestamp(value.date);
+  const principalDate = extractPrincipalDate(value.text);
+  if (!principalDate) {
+    return value.date;
+  }
+
+  const runTimestamp = extractRunTimestamp(value.id);
+  if (!storedDate || (runTimestamp && storedDate === runTimestamp)) {
+    return principalDate;
+  }
+
+  return value.date;
+}
+
 /**
  * Retrieve and shape documents for a patient
  * @param {string} patientId - Patient ID
@@ -95,7 +167,7 @@ async function fetchDocuments(patientId, documentIds = [], excludeProperties = [
         id: value.id,
         name: value.name,
         type: value.type,
-        date: value.date,
+        date: resolveDocumentDate(value),
         episode: value.episode,
         text: value.text,
         mentions: value.mentions || [],

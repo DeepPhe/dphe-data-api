@@ -1,6 +1,6 @@
 ![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen?logo=node.js&logoColor=white)
 ![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![GitHub package.json version](https://img.shields.io/github/package-json/v/DeepPhe/dphe-data-api)
 ![GitHub last commit](https://img.shields.io/github/last-commit/DeepPhe/dphe-data-api)
@@ -9,14 +9,15 @@
 # DeepPhe Data API
 
 A RESTful API for managing and accessing patient health data, including cancer information, demographics, documents, and
-clinical concepts. Built with Express.js and SQLite3.
+clinical concepts. Built with Express.js and PostgreSQL.
 
 ## Prerequisites
 
-- Node.js v24 or higher (the SQLite driver uses the built-in `node:sqlite` module)
+- Node.js v24 or higher
 - npm or yarn
+- A PostgreSQL database produced by the DeepPhe database pipeline
 
-All runtime dependencies are pure-JS, WASM, or Node built-ins (`node:sqlite`, `node:zlib`),
+All runtime dependencies are pure-JS, WASM, or Node built-ins (`node:zlib`),
 so there is no native build toolchain to install and the app can be packaged as a
 self-contained executable (see [Standalone executables](#standalone-executables-no-node-required)).
 
@@ -45,28 +46,39 @@ cp .env.example .env
 
 ```bash
 PORT=3333
-DB_PATH=./test/resources/deepphe.sqlite3
-TEST_PATIENT_ID=fake_patient1
+DATABASE_URL=postgresql://dphe:dphe@localhost:55432/dphe
 ```
 
-## Database Setup (SQLite3)
+## Database Setup (PostgreSQL)
 
-This project uses SQLite3 as an embedded database with a key-value store interface for high-performance data storage.
+This project reads from the PostgreSQL database created by `dphe-db-pipeline`. The source/development default matches the pipeline's local Compose database:
+
+```bash
+postgresql://dphe:dphe@localhost:55432/dphe
+```
 
 ### Database Configuration
 
-The database path is configured in `src/config/database.js` and can be overridden with the `DB_PATH` environment
-variable.
+The database URL is configured in `src/config/database.js` and can be overridden with the `DATABASE_URL` environment variable or the `--database-url` CLI flag.
 
-Default location: `./test/resources/deepphe.sqlite3`
+Packaged binaries require an explicit `DATABASE_URL` or `--database-url`.
 
 ### Database Schema
 
-The database uses a simple key-value structure with a `files` table:
+The API expects the following tables in the `deepphe` schema:
 
-- `filename` (TEXT PRIMARY KEY) - The document key/identifier
-- `content` (TEXT) - JSON-encoded document data
-- `encoding` (TEXT) - Encoding type ('raw' or 'zstd' for compressed content)
+- `files`
+- `patient_id_mapping`
+- `attributes_by_group`
+- `cancers_by_group`
+- `concepts_by_group`
+- `patient_summaries`
+
+DeepPhe lookup summary bitmap tables (`lookup_age_at_dx_by_group`, `lookup_ethnicity_by_group`, `lookup_gender_by_group`, `lookup_race_by_group`, and `lookup_cancers_by_group`) are optional. If the pipeline skipped them, OMOP instance endpoints return no rows rather than failing startup. Official OHDSI OMOP CDM tables live separately in the pipeline database's `omop` schema.
+
+> Operational note: the pipeline can drop and recreate the application schemas during a full rebuild.
+> Do not run the API against the same database while the pipeline is rebuilding it; use a maintenance window or a
+> blue/green database swap.
 
 ### Naming Conventions
 
@@ -101,12 +113,10 @@ The server will start on `http://localhost:3333` (or the port specified in your 
 
 ### Docker Compose
 
-The Docker image includes the local test fixture at `/app/test/resources/deepphe.sqlite3`.
-
-Set the container database path in `.env`:
+Set the container database URL in `.env`:
 
 ```bash
-DB_PATH=./test/resources/deepphe.sqlite3
+API_DATABASE_URL=postgresql://dphe:dphe@host.docker.internal:55432/dphe
 PORT=3333
 ```
 
@@ -129,7 +139,7 @@ See `DOCKER.md` for more Docker examples.
 
 The app can be packaged into a single self-contained executable per platform using
 [`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg). End users do not need Node.js or Docker
-installed — only the database file.
+installed, but they do need network access to PostgreSQL.
 
 Build all targets (macOS arm64/x64, Linux x64, Windows x64) into `dist/`:
 
@@ -138,17 +148,16 @@ npm run build
 ```
 
 This first regenerates the OpenAPI spec (`npm run build:spec`) so `/docs` works without the
-source tree, then produces the binaries. Run one, pointing it at a SQLite database:
+source tree, then produces the binaries. Run one, pointing it at PostgreSQL:
 
 ```bash
-./dist/dphe-data-api-macos-arm64 --db /path/to/deepphe.sqlite3
+./dist/dphe-data-api-macos-arm64 --database-url postgresql://dphe:dphe@localhost:55432/dphe
 # or via environment variable:
-DB_PATH=/path/to/deepphe.sqlite3 PORT=3333 ./dist/dphe-data-api-linux-x64
+DATABASE_URL=postgresql://dphe:dphe@localhost:55432/dphe PORT=3333 ./dist/dphe-data-api-linux-x64
 ```
 
-The database is **not** bundled into the binary; supply it with `--db <path>` or the
-`DB_PATH` environment variable. A relative path is resolved against the current working
-directory.
+The database is **not** bundled into the binary; supply it with `--database-url <url>` or the
+`DATABASE_URL` environment variable.
 
 > Note: `pkg` generates bytecode by running each target's base binary, which is not possible
 > for foreign CPU architectures. The build therefore uses `--no-bytecode`, which embeds the
@@ -203,7 +212,7 @@ npm run docs:build
 ```
 
 Pushes to `main` that change docs or OpenAPI inputs deploy the generated site to
-`https://deepphe.github.io/dphe-data-api/`.
+<https://deepphe.github.io/dphe-data-api/>.
 
 ## API Endpoints
 
@@ -290,6 +299,9 @@ curl "http://localhost:3333/v1/deepphe-api/deepphe/patient/123456789/documents?d
 Run the test suite:
 
 ```bash
+# Start the disposable Postgres test database once
+npm run test:db
+
 # Run all tests
 npm test
 
@@ -300,8 +312,13 @@ npm run test:watch
 npm run test:coverage
 
 # Run specific test file
-npm test -- src/db/sqlite-client.test.js
+npm test -- test/unit/postgres-client/fileStore.test.js
+
+# Stop and remove the disposable test database
+npm run test:db:down
 ```
+
+The test seeder refuses to reset a database unless its name ends with `_test`.
 
 ## Scripts
 
@@ -316,6 +333,9 @@ npm test -- src/db/sqlite-client.test.js
 | `npm run docs:start`       | Start the local Docusaurus documentation site                   |
 | `npm run docs:build`       | Build the Docusaurus site into `site/`                          |
 | `npm test`                 | Run all tests                                                   |
+| `npm run test:db`           | Start the disposable PostgreSQL test database                   |
+| `npm run test:db:down`      | Stop and remove the disposable PostgreSQL test database         |
+| `npm run test:seed`         | Re-seed the PostgreSQL test database                            |
 | `npm run test:watch`       | Run tests in watch mode                                         |
 | `npm run test:coverage`    | Run tests with coverage report                                  |
 
@@ -324,26 +344,25 @@ npm test -- src/db/sqlite-client.test.js
 ### Environment Variables
 
 - `PORT` - Server port (default: 3333)
-- `DB_PATH` - Path to SQLite database file
-- `TEST_PATIENT_ID` - Patient ID used in tests; the bundled fixture uses fake IDs
+- `DATABASE_URL` - PostgreSQL connection URL
+- `API_DATABASE_URL` - Docker Compose PostgreSQL connection URL
+- `TEST_DATABASE_URL` - PostgreSQL URL used by tests
+- `TEST_PATIENT_ID` - Patient ID used in tests
 
-### Database Path
+### Database URL
 
-The database path is centralized in `src/config/database.js`:
+The source/development database URL is centralized in `src/config/database.js`:
 
 ```javascript
-const DB_PATH = process.env.DB_PATH || './test/resources/deepphe.sqlite3';
+const DEFAULT_DATABASE_URL = 'postgresql://dphe:dphe@localhost:55432/dphe';
 ```
 
-To change the database location:
-
-1. Edit `src/config/database.js`, OR
-2. Set `DB_PATH` in your `.env` file
+To change the database, set `DATABASE_URL` in `.env` or pass `--database-url`.
 
 ## Security Notes
 
 **Important:** Never commit the `.env` file to version control. It may contain sensitive information such as
-patient IDs and database paths.
+patient IDs and database credentials.
 
 The `.gitignore` file is configured to exclude:
 

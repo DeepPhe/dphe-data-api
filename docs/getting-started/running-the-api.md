@@ -31,11 +31,18 @@ The Node.js inspector listens on port `9229`.
 
 ## Docker Compose
 
+Set `API_DATABASE_URL` in `.env` so Postgres resolves from inside the container:
+
+```bash
+API_DATABASE_URL=postgresql://dphe:dphe@host.docker.internal:55432/dphe
+PORT=3333
+```
+
+Then start the API:
+
 ```bash
 docker compose up --build
 ```
-
-The Docker image includes the local test fixture at `/app/test/resources/deepphe.sqlite3`. Set `DB_PATH` in `.env` before starting the container.
 
 ## Verify the server
 
@@ -45,8 +52,8 @@ Open the live API documentation:
 http://localhost:3333/docs
 ```
 
-Or fetch the OpenAPI JSON:
+Or check health:
 
 ```text
-http://localhost:3333/openapi.json
+http://localhost:3333/health
 ```

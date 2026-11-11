@@ -1,13 +1,8 @@
-const { getInstance } = require('./sqlite-client');
-const { DB_PATH } = require('../config/database');
+const { getInstance } = require('./postgres-client');
+const { DATABASE_URL } = require('../config/database');
 
-// Get the database instance
-const db = getInstance(DB_PATH);
+const db = getInstance(DATABASE_URL);
 
-/**
- * Initialize the database connection
- * Call this when the application starts
- */
 async function initializeDatabase() {
   try {
     await db.open();
@@ -18,10 +13,6 @@ async function initializeDatabase() {
   }
 }
 
-/**
- * Close the database connection
- * Call this when the application shuts down
- */
 async function closeDatabase() {
   try {
     await db.close();

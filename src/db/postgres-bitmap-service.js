@@ -1,10 +1,10 @@
 const fs = require('fs');
 const roaring = require('roaring-wasm');
-const { assertDatabaseOpen } = require('./sqlite-operations');
+const { assertDatabaseOpen } = require('./postgres-operations');
 
 const BASE64_PATTERN = /^[A-Za-z0-9+/=]+$/;
 
-class SQLiteBitmapService {
+class PostgresBitmapService {
   constructor(client) {
     this.client = client;
   }
@@ -116,8 +116,8 @@ class SQLiteBitmapService {
 
       const bitmap = await this.client.decodeBitmap(bitmapSource.source, bitmapSource.sourceType);
       const matched = bitmap.has(sequentialId);
-      // Free the WASM-backed bitmap before any further async work.
       roaring.dispose(bitmap);
+
       if (matched) {
         matchingRows.push(await this.client.processPatientBitmapRow(row, includePatientIds));
       }
@@ -135,7 +135,7 @@ class SQLiteBitmapService {
 
     const validSourceTypes = new Set(['file', 'buffer', 'base64', 'blob']);
     if (!validSourceTypes.has(sourceType)) {
-      throw new Error('Invalid sourceType. Must be "file", "buffer", or "base64"');
+      throw new Error('Invalid sourceType. Must be "file", "buffer", "base64", or "blob"');
     }
 
     let effectiveSource = source;
@@ -161,7 +161,9 @@ class SQLiteBitmapService {
     } catch (error) {
       throw new Error(`Failed to decode bitmap: ${error.message}`);
     } finally {
-      roaring.dispose(bitmap);
+      if (bitmap) {
+        roaring.dispose(bitmap);
+      }
     }
 
     if (sequentialIds.length === 0) {
@@ -169,12 +171,13 @@ class SQLiteBitmapService {
     }
 
     const patientIdsBySequentialId = {};
-    for (let index = 0; index < sequentialIds.length; index += 900) {
-      const chunk = sequentialIds.slice(index, index + 900);
-      const placeholders = chunk.map(() => '?').join(',');
+    for (let index = 0; index < sequentialIds.length; index += 10000) {
+      const chunk = sequentialIds.slice(index, index + 10000);
       const rows = await this.client.getAllRows(
-        `SELECT sequential_id, patient_id FROM patient_id_mapping WHERE sequential_id IN (${placeholders})`,
-        chunk,
+        `SELECT sequential_id, patient_id
+         FROM deepphe.patient_id_mapping
+         WHERE sequential_id = ANY($1::integer[])`,
+        [chunk],
       );
 
       rows.forEach((row) => {
@@ -191,5 +194,5 @@ class SQLiteBitmapService {
 }
 
 module.exports = {
-  SQLiteBitmapService,
+  PostgresBitmapService,
 };

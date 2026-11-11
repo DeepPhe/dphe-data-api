@@ -3,6 +3,7 @@ const morgan = require('morgan');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./docs/swagger');
+const { db } = require('./db');
 const dpheRoutes = require('./routes/dphe-data-routes');
 
 const app = express();
@@ -31,6 +32,15 @@ app.get('/openapi.json', (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   res.json(swaggerSpec);
+});
+
+app.get('/health', async (req, res) => {
+  try {
+    await db.healthCheck();
+    return res.status(200).json({ status: 'ok' });
+  } catch (_) {
+    return res.status(503).json({ status: 'unavailable' });
+  }
 });
 
 // Routes

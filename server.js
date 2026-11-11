@@ -1,4 +1,4 @@
-// node:sqlite and node:zlib's zstd APIs are stable enough for our use but emit
+// node:zlib's zstd APIs are stable enough for our use but may emit
 // ExperimentalWarning noise on startup. Drop those specific warnings while
 // leaving every other warning intact.
 const originalEmitWarning = process.emitWarning.bind(process);
@@ -12,31 +12,73 @@ process.emitWarning = (warning, type, ...rest) => {
 
 require('dotenv').config({ quiet: true });
 
-// Resolve the database location from a CLI flag before any module that reads
-// the configuration is loaded. Supported: `--db <path>`, `--db=<path>`, `-d`.
-function parseDbPathArg(argv) {
+function printHelp() {
+  console.log(`Usage: dphe-data-api [options]
+
+Options:
+  -d, --database-url <url>  PostgreSQL connection URL
+      --database-url=<url>  PostgreSQL connection URL
+  -h, --help                Show this help message
+
+Environment:
+  DATABASE_URL              PostgreSQL connection URL
+  PORT                      HTTP port (default: 3333)
+`);
+}
+
+function parseDatabaseUrlArg(argv) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--db' || arg === '-d') {
-      return argv[i + 1];
+
+    if (arg === '--help' || arg === '-h') {
+      return { help: true };
     }
-    if (arg.startsWith('--db=')) {
-      return arg.slice('--db='.length);
+
+    if (arg === '--db' || arg.startsWith('--db=')) {
+      return {
+        error:
+          'The --db flag was removed with the PostgreSQL migration. Use --database-url instead.',
+      };
+    }
+
+    if (arg === '--database-url' || arg === '-d') {
+      const value = argv[i + 1];
+      if (!value || value.startsWith('-')) {
+        return { error: `${arg} requires a PostgreSQL connection URL` };
+      }
+      return { databaseUrl: value };
+    }
+
+    if (arg.startsWith('--database-url=')) {
+      const value = arg.slice('--database-url='.length);
+      if (!value) {
+        return { error: '--database-url requires a PostgreSQL connection URL' };
+      }
+      return { databaseUrl: value };
     }
   }
-  return undefined;
+
+  return {};
 }
 
-const dbPathArg = parseDbPathArg(process.argv.slice(2));
-if (dbPathArg) {
-  process.env.DB_PATH = dbPathArg;
+const parsedArgs = parseDatabaseUrlArg(process.argv.slice(2));
+if (parsedArgs.help) {
+  printHelp();
+  process.exit(0);
 }
 
-// A packaged binary has no bundled database, so one must be supplied.
-if (process.pkg && !process.env.DB_PATH) {
-  console.error('Error: no database specified.');
-  console.error('Provide one with --db <path> or the DB_PATH environment variable.');
-  console.error('Example: dphe-data-api --db ./deepphe.sqlite3');
+if (parsedArgs.error) {
+  console.error(`Error: ${parsedArgs.error}`);
+  process.exit(1);
+}
+
+if (parsedArgs.databaseUrl) {
+  process.env.DATABASE_URL = parsedArgs.databaseUrl;
+}
+
+if (process.pkg && !process.env.DATABASE_URL) {
+  console.error('Error: no PostgreSQL database specified.');
+  console.error('Provide one with --database-url <url> or the DATABASE_URL environment variable.');
   process.exit(1);
 }
 
@@ -45,10 +87,8 @@ const { initializeDatabase, closeDatabase } = require('./src/db');
 
 const port = process.env.PORT || 3333;
 
-// Initialize database and start server
 async function startServer() {
   try {
-    // Initialize the shared SQLite connection.
     await initializeDatabase();
 
     const server = app.listen(port, () => {
@@ -57,7 +97,6 @@ async function startServer() {
       console.log(`OpenAPI JSON: http://localhost:${port}/openapi.json`);
     });
 
-    // Graceful shutdown
     const shutdown = async (signal) => {
       console.log(`\n${signal} received. Shutting down gracefully...`);
       server.close(async () => {
@@ -66,7 +105,6 @@ async function startServer() {
         process.exit(0);
       });
 
-      // Force shutdown after 10 seconds
       setTimeout(() => {
         console.error('Could not close connections in time, forcefully shutting down');
         process.exit(1);

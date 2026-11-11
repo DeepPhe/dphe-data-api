@@ -1,9 +1,9 @@
 const { db } = require('../../../src/db');
-const { SQLiteClient } = require('../../../src/db/sqlite-client');
+const { PostgresClient } = require('../../../src/db/postgres-client');
 
 jest.setTimeout(30000);
 
-describe('SQLiteClient.getFilteredPatientCount', () => {
+describe('PostgresClient.getFilteredPatientCount', () => {
   let raceValues;
   let genderValues;
 
@@ -43,6 +43,50 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
     result.timing.itemCounts.forEach((itemCount) => {
       expect(result.count).toBeLessThanOrEqual(itemCount);
     });
+  });
+
+  test('filters attribute instances by attribute group and classUri', async () => {
+    const result = await db.getFilteredPatientCount([
+      { type: 'attributes', class: 'stage', instances: ['AJCC_Stage_II'] },
+    ]);
+
+    expect(result.count).toBe(1);
+    expect(result.patient_ids).toEqual(['fake_patient1']);
+    expect(result.timing.itemCounts).toEqual([1]);
+  });
+
+  test('filters cancer instances by classUri', async () => {
+    const result = await db.getFilteredPatientCount([
+      { type: 'cancers', class: 'ignored-for-cancers', instances: ['Lung_Cancer'] },
+    ]);
+
+    expect(result.count).toBe(1);
+    expect(result.patient_ids).toEqual(['fake_patient2']);
+    expect(result.timing.itemCounts).toEqual([1]);
+  });
+
+  test('filters concept instances by dpheGroup and classUri', async () => {
+    const result = await db.getFilteredPatientCount([
+      { type: 'concepts', class: 'Biomarker', instances: ['HER2'] },
+    ]);
+
+    expect(result.count).toBe(1);
+    expect(result.patient_ids).toEqual(['fake_patient1']);
+    expect(result.timing.itemCounts).toEqual([1]);
+  });
+
+  test('intersects non-OMOP filter types together', async () => {
+    const filters = [
+      { type: 'attributes', class: 'stage', instances: ['AJCC_Stage_II'] },
+      { type: 'cancers', class: 'ignored-for-cancers', instances: ['Breast_Cancer'] },
+      { type: 'concepts', class: 'Biomarker', instances: ['HER2'] },
+    ];
+
+    const result = await db.getFilteredPatientCount(filters);
+
+    expect(result.count).toBe(1);
+    expect(result.patient_ids).toEqual(['fake_patient1']);
+    expect(result.timing.itemCounts).toEqual([1, 2, 1]);
   });
 
   test('explicitly includes patient IDs', async () => {
@@ -103,7 +147,7 @@ describe('SQLiteClient.getFilteredPatientCount', () => {
   });
 
   test('throws when the database is closed', async () => {
-    const closedDb = new SQLiteClient('/tmp/nonexistent');
+    const closedDb = new PostgresClient('postgresql://dphe:dphe@localhost:1/closed_test');
 
     await expect(
       closedDb.getFilteredPatientCount([{ type: 'omop', class: 'RACE', instances: ['White'] }]),

@@ -127,3 +127,64 @@ describe('patientDocumentController.getDocumentEpisodeCounts', () => {
     errorSpy.mockRestore();
   });
 });
+
+describe('patientDocumentController.getDocuments document dates', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('recovers the principal date when migration stored the run timestamp', async () => {
+    mockDb.getByPrefix.mockResolvedValue([
+      {
+        key: 'patient123_doc1_NOTE_Doc.json',
+        value: {
+          id: 'patient123_11052026224631_D_1',
+          name: 'patient123_doc1_NOTE',
+          type: 'Clinical Note',
+          date: '202605112246',
+          episode: 'Diagnostic',
+          text: 'Report ID.....................1,doc1\nPrincipal Date....................20110301 1015\n',
+        },
+      },
+    ]);
+
+    const req = { params: { patientId: 'patient123' }, query: {} };
+    const res = makeRes();
+
+    await patientDocumentController.getDocuments(req, res);
+
+    expect(res.json).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: 'patient123_11052026224631_D_1',
+        date: '201103011015',
+      }),
+    ]);
+  });
+
+  test('preserves a valid clinical date that does not match the run timestamp', async () => {
+    mockDb.getByPrefix.mockResolvedValue([
+      {
+        key: 'patient123_doc1_NOTE_Doc.json',
+        value: {
+          id: 'patient123_11052026224631_D_1',
+          name: 'patient123_doc1_NOTE',
+          type: 'Clinical Note',
+          date: '201102281200',
+          episode: 'Diagnostic',
+          text: 'Principal Date....................20110301 1015\n',
+        },
+      },
+    ]);
+
+    const req = { params: { patientId: 'patient123' }, query: {} };
+    const res = makeRes();
+
+    await patientDocumentController.getDocuments(req, res);
+
+    expect(res.json).toHaveBeenCalledWith([
+      expect.objectContaining({
+        date: '201102281200',
+      }),
+    ]);
+  });
+});

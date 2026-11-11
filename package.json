@@ -1,7 +1,7 @@
 {
   "name": "dphe-data-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "DeepPhe Data API backed by PostgreSQL",
   "main": "index.js",
   "bin": "server.js",
   "scripts": {
@@ -11,7 +11,10 @@
     "generate-schemas": "node src/utils/schemaConverter.js",
     "build:spec": "node scripts/generate-openapi.js",
     "build": "npm run build:spec && pkg . --no-bytecode --public --public-packages \"*\"",
-    "test": "jest",
+    "test": "jest --runInBand --detectOpenHandles",
+    "test:db": "docker compose -f compose.test.yaml up -d --wait",
+    "test:db:down": "docker compose -f compose.test.yaml down -v",
+    "test:seed": "node test/helpers/seed-postgres.js",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "docs:install": "npm ci --prefix docs-site",
@@ -48,7 +51,9 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "json-schema-generator": "^2.0.6",
+    "lz4js": "^0.2.0",
     "morgan": "^1.10.1",
+    "pg": "^8.22.0",
     "roaring-wasm": "^1.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"

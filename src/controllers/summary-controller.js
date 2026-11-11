@@ -1,4 +1,4 @@
-const { getInstance } = require('../db/sqlite-client');
+const { getInstance } = require('../db/postgres-client');
 
 /**
  * Parse includePatientIds query param with default=true.
@@ -28,7 +28,7 @@ function getElapsedMs(start) {
 }
 
 /**
- * Build a summary endpoint handler around a SQLite client method.
+ * Build a summary endpoint handler around a database client method.
  * @param {string} dbMethodName
  * @param {string} errorContext
  * @returns {(req: Object, res: Object) => Promise<void>}

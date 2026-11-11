@@ -1,7 +1,7 @@
 const { db } = require('../../../src/db/index');
-const { SQLiteClient } = require('../../../src/db/sqlite-client');
+const { PostgresClient } = require('../../../src/db/postgres-client');
 
-describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
+describe('PostgresClient.getPatientSummariesByPatientIds', () => {
   let knownPatientId = null;
   let knownSummaryPatientId = null;
 
@@ -12,8 +12,8 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
       `SELECT
            ps.patient_id AS summary_patient_id,
            pim.patient_id AS patient_id
-         FROM patient_summaries ps
-         LEFT JOIN patient_id_mapping pim
+         FROM deepphe.patient_summaries ps
+         LEFT JOIN deepphe.patient_id_mapping pim
            ON pim.sequential_id = ps.patient_id
          LIMIT 1`,
     );
@@ -57,7 +57,7 @@ describe('SQLiteClient.getPatientSummariesByPatientIds', () => {
   });
 
   test('throws if database is not open', async () => {
-    const closedDb = new SQLiteClient('/tmp/nonexistent.sqlite');
+    const closedDb = new PostgresClient('postgresql://dphe:dphe@localhost:1/closed_test');
     await expect(closedDb.getPatientSummariesByPatientIds(['123'])).rejects.toThrow(
       'Database is not open',
     );

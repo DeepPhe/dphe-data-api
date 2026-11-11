@@ -7,13 +7,13 @@ description: Run, package, and integrate with the DeepPhe Data API.
 
 # DeepPhe Data API
 
-The DeepPhe Data API is an Express service that exposes patient documents, patient summaries, cancer and concept data, OMOP demographic rows, and cohort filter counts from a SQLite database.
+The DeepPhe Data API is an Express service that exposes patient documents, patient summaries, cancer and concept data, OMOP demographic rows, and cohort filter counts from a PostgreSQL database produced by the DeepPhe database pipeline.
 
 Most consumers use it in one of three ways:
 
 1. Start the API locally and browse Swagger UI at `http://localhost:3333/docs`.
 2. Query patient and group endpoints directly from a client application.
-3. Package the service as a standalone executable and point it at a DeepPhe SQLite database.
+3. Package the service as a standalone executable and point it at a DeepPhe PostgreSQL database.
 
 ## Start here
 

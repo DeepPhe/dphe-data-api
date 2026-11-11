@@ -17,20 +17,20 @@ The build regenerates the OpenAPI spec and writes platform binaries to `dist/`.
 
 ## Run a packaged binary
 
-Pass the SQLite database path with `--db`:
+Pass the PostgreSQL database URL with `--database-url`:
 
 ```bash
-./dist/dphe-data-api-macos-arm64 --db /path/to/deepphe.sqlite3
+./dist/dphe-data-api-macos-arm64 --database-url postgresql://dphe:dphe@localhost:55432/dphe
 ```
 
-Or use `DB_PATH`:
+Or use `DATABASE_URL`:
 
 ```bash
-DB_PATH=/path/to/deepphe.sqlite3 PORT=3333 ./dist/dphe-data-api-linux-x64
+DATABASE_URL=postgresql://dphe:dphe@localhost:55432/dphe PORT=3333 ./dist/dphe-data-api-linux-x64
 ```
 
 The database is not bundled into the executable.
 
 ## Release assets
 
-Pushes to `main` run the release workflow, which builds platform executables, signs and notarizes macOS artifacts, creates SHA-256 checksums, and publishes release assets to `DeepPhe/DeepPhe-Dist`.
+Pushes to `main` run the release workflow, which first runs the PostgreSQL-backed tests, then builds platform executables, runs smoke checks, signs and notarizes macOS artifacts, creates SHA-256 checksums, and publishes release assets to `DeepPhe/DeepPhe-Dist`.

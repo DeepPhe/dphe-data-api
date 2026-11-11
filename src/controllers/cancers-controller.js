@@ -1,4 +1,4 @@
-const { getInstance } = require('../db/sqlite-client');
+const { getInstance } = require('../db/postgres-client');
 const { createGroupControllers } = require('./group-controller-factory');
 
 /**

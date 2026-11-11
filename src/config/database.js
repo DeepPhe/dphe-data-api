@@ -1,26 +1,32 @@
 /**
- * Database configuration
+ * PostgreSQL database configuration.
  */
 
-const path = require('path');
+const DEFAULT_DATABASE_URL = 'postgresql://dphe:dphe@localhost:55432/dphe';
 
-// Development default: the SQLite fixture shipped in the repo. This path is
-// only meaningful when running from source; a packaged binary has no bundled
-// database and must be given one via DB_PATH / the --db flag (see server.js).
-const DEFAULT_DB_PATH = path.resolve(__dirname, '../../test/resources/deepphe.sqlite3');
+function resolveDatabaseUrl() {
+  return process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
+}
 
-function resolveDbPath() {
-  const configured = process.env.DB_PATH;
-  if (configured) {
-    // Resolve against the real working directory. Inside a packaged binary
-    // __dirname points at a virtual snapshot path, so a relative DB_PATH must
-    // be anchored to process.cwd() to reach the user's actual file.
-    return path.resolve(process.cwd(), configured);
+function maskDatabaseUrl(databaseUrl) {
+  const value = String(databaseUrl || '');
+  if (!value) {
+    return value;
   }
-  return DEFAULT_DB_PATH;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.password) {
+      parsed.password = '***';
+    }
+    return parsed.toString();
+  } catch (_) {
+    return value.replace(/(password=)([^ ]+)/i, '$1***');
+  }
 }
 
 module.exports = {
-  DEFAULT_DB_PATH,
-  DB_PATH: resolveDbPath(),
+  DEFAULT_DATABASE_URL,
+  DATABASE_URL: resolveDatabaseUrl(),
+  maskDatabaseUrl,
 };

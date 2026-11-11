@@ -5,7 +5,7 @@ const os = require('os');
 // Import the database client
 const { db } = require('../../../src/db/index');
 
-describe('SQLiteClient.decodeBitmap', () => {
+describe('PostgresClient.decodeBitmap', () => {
   let tempFilePath;
   let tempDir;
 

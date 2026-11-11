@@ -1,10 +1,10 @@
-const { SQLiteClient } = require('../../../src/db/sqlite-client');
+const { PostgresClient } = require('../../../src/db/postgres-client');
 
-describe('SQLiteClient.getPatientCancers / getPatientConcepts', () => {
+describe('PostgresClient.getPatientCancers / getPatientConcepts', () => {
   let client;
 
   beforeEach(() => {
-    client = new SQLiteClient('./test/resources/deepphe.sqlite3');
+    client = new PostgresClient('postgresql://dphe:dphe@localhost:1/mock_test');
     // Inject a minimal mock db with get stub
     client.isOpen = true;
   });

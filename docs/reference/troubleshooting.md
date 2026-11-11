@@ -5,19 +5,40 @@ description: Common DeepPhe Data API setup and runtime fixes.
 
 # Troubleshooting
 
-## The server cannot find the database
+## The server cannot connect to PostgreSQL
 
-Check that `DB_PATH` points to an existing SQLite file:
-
-```bash
-DB_PATH=/absolute/path/to/deepphe.sqlite3 npm start
-```
-
-For packaged binaries, pass `--db` explicitly:
+Check that `DATABASE_URL` points at a reachable DeepPhe database:
 
 ```bash
-dphe-data-api --db /absolute/path/to/deepphe.sqlite3
+DATABASE_URL=postgresql://dphe:dphe@localhost:55432/dphe npm start
 ```
+
+For packaged binaries, pass `--database-url` explicitly:
+
+```bash
+dphe-data-api --database-url postgresql://dphe:dphe@localhost:55432/dphe
+```
+
+Inside Docker Compose, use `API_DATABASE_URL` with `host.docker.internal` when Postgres is running on the host:
+
+```bash
+API_DATABASE_URL=postgresql://dphe:dphe@host.docker.internal:55432/dphe docker compose up --build
+```
+
+## Startup reports missing tables
+
+Run the DeepPhe database pipeline first, or point `DATABASE_URL` at the database that already contains the `deepphe` schema. The API requires `files`, `patient_id_mapping`, grouped bitmap tables, and `patient_summaries`.
+
+## Tests cannot connect
+
+Start the disposable test database before running tests locally:
+
+```bash
+npm run test:db
+npm test
+```
+
+The test seeder refuses to reset a database unless its name ends with `_test`.
 
 ## Swagger UI is stale
 

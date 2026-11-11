@@ -1,10 +1,10 @@
-const { SQLiteClient } = require('../../../src/db/sqlite-client');
+const { PostgresClient } = require('../../../src/db/postgres-client');
 
-describe('SQLiteClient summary methods', () => {
+describe('PostgresClient summary methods', () => {
   let db;
 
   beforeEach(() => {
-    db = new SQLiteClient('/tmp/summary-test.db');
+    db = new PostgresClient('postgresql://dphe:dphe@localhost:1/summary_test');
     db.isOpen = true;
   });
 

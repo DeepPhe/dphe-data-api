@@ -9,9 +9,9 @@ description: Install dependencies and configure the DeepPhe Data API.
 
 - Node.js 24 or newer
 - npm
-- A DeepPhe SQLite database
+- A DeepPhe PostgreSQL database, normally produced by `dphe-db-pipeline`
 
-The API uses built-in Node.js SQLite support plus pure JavaScript and WASM dependencies, so it does not require a native build toolchain.
+The API uses pure JavaScript, WASM, and Node built-in dependencies, so it does not require a native build toolchain.
 
 ## Install dependencies
 
@@ -33,8 +33,13 @@ Typical local values:
 
 ```bash
 PORT=3333
-DB_PATH=./test/resources/deepphe.sqlite3
-TEST_PATIENT_ID=fake_patient1
+DATABASE_URL=postgresql://dphe:dphe@localhost:55432/dphe
 ```
 
-`DB_PATH` can point to an absolute path or a path relative to the current working directory.
+The source default matches the local pipeline Compose database. Packaged binaries require `DATABASE_URL` or `--database-url`.
+
+:::warning Pipeline rebuilds
+
+The pipeline can drop and recreate schemas during a full rebuild. Do not serve API traffic from a database while the pipeline is rebuilding it; use a maintenance window or a blue/green database swap.
+
+:::

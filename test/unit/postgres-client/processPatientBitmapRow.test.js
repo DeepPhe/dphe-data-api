@@ -1,12 +1,12 @@
 'use strict';
 
-const { SQLiteClient } = require('../../../src/db/sqlite-client');
+const { PostgresClient } = require('../../../src/db/postgres-client');
 
-describe('SQLiteClient.processPatientBitmapRow', () => {
+describe('PostgresClient.processPatientBitmapRow', () => {
   let client;
 
   beforeEach(() => {
-    client = new SQLiteClient('/tmp/bitmap-row-test.sqlite3');
+    client = new PostgresClient('postgresql://dphe:dphe@localhost:1/bitmap_row_test');
     client.patientBitmapToPatientIds = jest.fn().mockResolvedValue(['patient-1']);
   });
 

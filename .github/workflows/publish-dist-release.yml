@@ -14,8 +14,45 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-22.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dphe
+          POSTGRES_PASSWORD: dphe
+          POSTGRES_DB: dphe_api_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dphe -d dphe_api_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://dphe:dphe@localhost:5432/dphe_api_test
+      TEST_DATABASE_URL: postgresql://dphe:dphe@localhost:5432/dphe_api_test
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
   build:
     name: ${{ matrix.artifact }}
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -107,6 +144,41 @@ jobs:
         run: |
           mkdir -p dist
           npx --no-install pkg . --targets "${{ matrix.target }}" --output "${{ matrix.artifact-file }}" --no-bytecode --public --public-packages "*"
+
+      - name: Smoke packaged help
+        shell: bash
+        run: |
+          "${{ matrix.artifact-file }}" --help
+
+      - name: Start PostgreSQL for Linux smoke
+        if: runner.os == 'Linux'
+        shell: bash
+        run: docker compose -f compose.test.yaml up -d --wait
+
+      - name: Seed Linux smoke database
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          TEST_DATABASE_URL: postgresql://dphe:dphe@localhost:55435/dphe_api_test
+        run: node test/helpers/seed-postgres.js
+
+      - name: Smoke packaged Linux server
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          DATABASE_URL: postgresql://dphe:dphe@localhost:55435/dphe_api_test
+          PORT: 3333
+        run: |
+          "${{ matrix.artifact-file }}" &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3333/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3333/health
 
       - name: Sign and notarize macOS executable
         if: runner.os == 'macOS'

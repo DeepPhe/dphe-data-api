@@ -8,7 +8,7 @@ const mockDb = {
   getConceptsSummary: jest.fn(),
 };
 
-jest.mock('../../../src/db/sqlite-client', () => ({
+jest.mock('../../../src/db/postgres-client', () => ({
   getInstance: jest.fn(() => mockDb),
 }));
 
